@@ -29,6 +29,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { writeAudit, getClientIp, logInfo } from '../../services/auditLog';
 import { isDemoEmail } from '../../services/demo';
 import { NotFoundError, ValidationError } from '../../services/tripService';
+import { saveUploadedFile } from '../../services/supabaseStorage';
 
 const MAX_COVER_SIZE = 20 * 1024 * 1024;
 const coversDir = path.join(__dirname, '../../../uploads/covers');
@@ -143,7 +144,7 @@ export class TripsController {
 
   @Post(':id/cover')
   @UseInterceptors(FileInterceptor('cover', COVER_UPLOAD))
-  cover(@CurrentUser() user: User, @Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined) {
+  async cover(@CurrentUser() user: User, @Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined) {
     if (process.env.DEMO_MODE?.toLowerCase() === 'true' && isDemoEmail(user.email)) {
       throw new HttpException({ error: 'Uploads are disabled in demo mode. Self-host TREK for full functionality.' }, 403);
     }
@@ -162,6 +163,8 @@ export class TripsController {
       throw new HttpException({ error: 'No image uploaded' }, 400);
     }
     this.trips.deleteOldCover(trip.cover_image);
+    // Sync to Supabase Storage
+    await saveUploadedFile('covers', file.filename, null, file.mimetype, path.join(coversDir, file.filename));
     const coverUrl = `/uploads/covers/${file.filename}`;
     this.trips.updateCoverImage(id, coverUrl);
     return { cover_image: coverUrl };

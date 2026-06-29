@@ -26,6 +26,7 @@ import { JourneyAddonGuard } from './journey-addon.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { getAllowedExtensions } from '../../services/fileService';
+import { saveUploadedFile } from '../../services/supabaseStorage';
 
 const uploadsBase = path.join(__dirname, '../../../uploads/journey');
 const IMAGE_UPLOAD = {
@@ -121,6 +122,8 @@ export class JourneyController {
     }
     const results: unknown[] = [];
     for (const file of files) {
+      // Sync to Supabase Storage
+      await saveUploadedFile('journey', file.filename, null, file.mimetype, path.join(uploadsBase, file.filename));
       const relativePath = `journey/${file.filename}`;
       const photo = this.journey.addPhoto(Number(entryId), user.id, relativePath, undefined, body?.caption);
       if (!photo) continue;
@@ -210,9 +213,13 @@ export class JourneyController {
   // ── Gallery (prefix /:id/gallery — before /:id) ─────────────────────────
   @Post(':id/gallery/photos')
   @UseInterceptors(FilesInterceptor('photos', undefined, IMAGE_UPLOAD))
-  uploadGalleryPhotos(@CurrentUser() user: User, @Param('id') id: string, @UploadedFiles() files: Express.Multer.File[] | undefined) {
+  async uploadGalleryPhotos(@CurrentUser() user: User, @Param('id') id: string, @UploadedFiles() files: Express.Multer.File[] | undefined) {
     if (!files?.length) {
       throw new HttpException({ error: 'No files uploaded' }, 400);
+    }
+    // Sync each file to Supabase Storage
+    for (const f of files) {
+      await saveUploadedFile('journey', f.filename, null, f.mimetype, path.join(uploadsBase, f.filename));
     }
     const filePaths = files.map((f) => ({ path: `journey/${f.filename}` }));
     const photos = this.journey.uploadGalleryPhotos(Number(id), user.id, filePaths);
@@ -277,10 +284,12 @@ export class JourneyController {
   @Post(':id/cover')
   @HttpCode(200) // Express answers cover with res.json (200).
   @UseInterceptors(FileInterceptor('cover', IMAGE_UPLOAD))
-  cover(@CurrentUser() user: User, @Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined) {
+  async cover(@CurrentUser() user: User, @Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined) {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
+    // Sync to Supabase Storage
+    await saveUploadedFile('journey', file.filename, null, file.mimetype, path.join(uploadsBase, file.filename));
     const result = this.journey.updateJourney(Number(id), user.id, { cover_image: `journey/${file.filename}` });
     if (!result) {
       throw new HttpException({ error: 'Journey not found' }, 404);

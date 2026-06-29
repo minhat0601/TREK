@@ -6,6 +6,13 @@ import http from 'node:http';
 import type { INestApplication } from '@nestjs/common';
 import { buildApp } from './bootstrap';
 
+// Restore database from Supabase if running on ephemeral hosting (Render)
+import { restoreDbFromSupabase } from './services/dbSync';
+(async () => {
+  try { await restoreDbFromSupabase(); }
+  catch (err) { console.error('[DB-Sync] Restore failed:', err); }
+})();
+
 // Create upload and data directories on startup
 const uploadsDir = path.join(__dirname, '../uploads');
 const photosDir = path.join(uploadsDir, 'photos');
@@ -81,6 +88,7 @@ const onListen = () => {
   scheduler.startTrekPhotoCacheCleanup();
   scheduler.startPlacePhotoCacheCleanup();
   scheduler.startAirTrailSync();
+  scheduler.startDbSync();
   const { startTokenCleanup } = require('./services/ephemeralTokens');
   startTokenCleanup();
   import('./websocket').then(({ setupWebSocket }) => {
@@ -115,14 +123,21 @@ function shutdown(signal: string): void {
   sLogInfo(`${signal} received — shutting down gracefully...`);
   scheduler.stop();
   closeMcpSessions();
-  void nestApp?.close();
-  server.close(() => {
-    sLogInfo('HTTP server closed');
-    const { closeDb } = require('./db/database');
-    closeDb();
-    sLogInfo('Shutdown complete');
-    process.exit(0);
-  });
+  // Final DB sync to Supabase before shutting down
+  const { syncDbToSupabase } = require('./services/dbSync');
+  syncDbToSupabase()
+    .then(() => sLogInfo('Final DB sync to Supabase complete'))
+    .catch((err: unknown) => sLogError(`Final DB sync failed: ${err instanceof Error ? err.message : err}`))
+    .finally(() => {
+      void nestApp?.close();
+      server.close(() => {
+        sLogInfo('HTTP server closed');
+        const { closeDb } = require('./db/database');
+        closeDb();
+        sLogInfo('Shutdown complete');
+        process.exit(0);
+      });
+    });
   setTimeout(() => {
     sLogError('Forced shutdown after timeout');
     process.exit(1);

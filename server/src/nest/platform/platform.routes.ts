@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 import { verifyJwtAndLoadUser } from '../../middleware/auth';
 import { db } from '../../db/database';
+import { isSupabaseEnabled, downloadFile } from '../../services/supabaseStorage';
 import { mcpHandler } from '../../mcp';
 import { trekOAuthProvider, trekClientsStore } from '../../mcp/oauthProvider';
 import { isAddonEnabled } from '../../services/adminService';
@@ -35,27 +36,34 @@ export const PUBLIC_DIR = path.join(__dirname, '../../../public');
  * (identical to its original position near the top of createApp).
  */
 export function applyPlatformUploads(app: express.Application): void {
-  // Static: avatars, covers, and journey photos.
-  //
-  // Security model (audit SEC-M9): these paths are unauthenticated by
-  // design. All filenames are server-chosen UUID v4 (see `uuid()` in
-  // the multer storage config for avatars / covers / journey uploads),
-  // which gives each asset >122 bits of namespace entropy — not
-  // guessable via enumeration. An attacker would need to have already
-  // seen the URL (email, shared journey, etc.) to request the file.
-  //
-  // Moving these behind auth would also break:
-  //   - Unauthenticated trip-card rendering on public share links
-  //   - Journey public-share pages (/public/journey/:token)
-  //   - Email-embedded avatars
-  //
-  // The `/uploads/photos/...` route below is DIFFERENT: photo URLs are
-  // not embedded in unauthenticated UI contexts, so that endpoint IS
-  // gated (session JWT with pv, or a share token scoped to the photo's
-  // trip).
-  app.use('/uploads/avatars', express.static(path.join(UPLOADS_DIR, 'avatars')));
-  app.use('/uploads/covers', express.static(path.join(UPLOADS_DIR, 'covers')));
-  app.use('/uploads/journey', express.static(path.join(UPLOADS_DIR, 'journey')));
+/**
+ * Fallback middleware: when a file isn't found locally (ephemeral container),
+ * fetch it from Supabase Storage and stream it back.
+ */
+function supabaseFallback(subdir: string) {
+  return async (_req: Request, res: Response) => {
+    if (!isSupabaseEnabled()) return res.status(404).send('Not found');
+    const safeName = path.basename(_req.path);
+    try {
+      const buffer = await downloadFile('trek-uploads', `${subdir}/${safeName}`);
+      const ext = path.extname(safeName).toLowerCase();
+      const mimeMap: Record<string, string> = {
+        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+        '.gif': 'image/gif', '.webp': 'image/webp', '.heic': 'image/heic',
+        '.pdf': 'application/pdf', '.svg': 'image/svg+xml',
+      };
+      res.set('Content-Type', mimeMap[ext] || 'application/octet-stream');
+      res.set('Cache-Control', 'public, max-age=86400');
+      res.send(buffer);
+    } catch {
+      res.status(404).send('Not found');
+    }
+  };
+}
+
+  app.use('/uploads/avatars', express.static(path.join(UPLOADS_DIR, 'avatars')), supabaseFallback('avatars'));
+  app.use('/uploads/covers', express.static(path.join(UPLOADS_DIR, 'covers')), supabaseFallback('covers'));
+  app.use('/uploads/journey', express.static(path.join(UPLOADS_DIR, 'journey')), supabaseFallback('journey'));
 
   // Photos require either a valid logged-in session (via JWT with the
   // password_version gate) OR a share token that covers the SPECIFIC

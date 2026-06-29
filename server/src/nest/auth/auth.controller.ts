@@ -26,6 +26,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
 import { writeAudit, getClientIp } from '../../services/auditLog';
 import { isDemoEmail } from '../../services/demo';
+import { saveUploadedFile } from '../../services/supabaseStorage';
 import type { User } from '../../types';
 
 const WINDOW = 15 * 60 * 1000;
@@ -138,6 +139,8 @@ export class AuthController {
     if (!file) {
       throw new HttpException({ error: 'No image uploaded' }, 400);
     }
+    // Sync to Supabase Storage
+    await saveUploadedFile('avatars', file.filename, null, file.mimetype, path.join(avatarDir, file.filename));
     return this.auth.saveAvatar(user.id, file.filename);
   }
 

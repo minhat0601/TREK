@@ -24,6 +24,7 @@ import { CollabService } from './collab.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { BLOCKED_EXTENSIONS } from '../../services/fileService';
+import { saveUploadedFile } from '../../services/supabaseStorage';
 
 const MAX_NOTE_FILE_SIZE = 50 * 1024 * 1024;
 const filesDir = path.join(__dirname, '../../../uploads/files');
@@ -132,7 +133,7 @@ export class CollabController {
 
   @Post('notes/:id/files')
   @UseInterceptors(FileInterceptor('file', NOTE_UPLOAD))
-  addNoteFile(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined, @Headers('x-socket-id') socketId?: string) {
+  async addNoteFile(@CurrentUser() user: User, @Param('tripId') tripId: string, @Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined, @Headers('x-socket-id') socketId?: string) {
     const trip = this.requireTrip(tripId, user);
     if (!this.collab.canUploadFiles(trip, user)) {
       throw new HttpException({ error: 'No permission to upload files' }, 403);
@@ -140,6 +141,8 @@ export class CollabController {
     if (!file) {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
+    // Sync to Supabase Storage
+    await saveUploadedFile('files', file.filename, null, file.mimetype, path.join(filesDir, file.filename));
     const result = this.collab.addNoteFile(tripId, id, file);
     if (!result) {
       throw new HttpException({ error: 'Note not found' }, 404);

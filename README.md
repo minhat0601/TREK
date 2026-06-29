@@ -282,6 +282,84 @@ helm install trek trek/trek
 
 See [`charts/README.md`](https://github.com/mauriceboe/TREK/blob/main/charts/README.md) for values.
 
+<h2 id="fly-io">Fly.io (free tier)</h2>
+
+<details>
+<summary>Deploy to Fly.io with a single persistent volume</summary>
+
+TREK runs on Fly.io's free tier with a single volume for the database and uploads.
+
+**Prerequisites:** [Install flyctl](https://fly.io/docs/flyctl/install/) and sign up at [fly.io](https://fly.io).
+
+```bash
+# 1. Launch (creates the app + volume)
+fly launch --copy-config --no-deploy
+
+# 2. Create the persistent volume (2 GB, Singapore region)
+fly volumes create trek_data --region sin --size 2
+
+# 3. Set required secrets
+fly secrets set ENCRYPTION_KEY=$(openssl rand -hex 32)
+fly secrets set APP_URL=https://<your-app-name>.fly.dev
+
+# 4. Deploy
+fly deploy
+```
+
+Open `https://<your-app-name>.fly.dev`. First-boot credentials appear in `fly logs`.
+
+> [!NOTE]
+> The container automatically redirects uploads onto the data volume when it detects Fly.io, so both the SQLite database and all uploaded files survive restarts on a single volume.
+
+</details>
+
+<h2 id="render">Render (free, no credit card)</h2>
+
+<details>
+<summary>Deploy to Render with Supabase Storage for persistence</summary>
+
+TREK runs on Render's free tier with Supabase Storage for file uploads and database backups. **No credit card required** for either service.
+
+**Prerequisites:**
+- [Supabase](https://supabase.com) account (free)
+- [Render](https://render.com) account (free)
+
+**Step 1: Configure Supabase**
+
+1. Create a new Supabase project
+2. Go to **Storage** → Create two buckets:
+   - `trek-uploads` (public) — for avatars, covers, journey media, trip files
+   - `trek-backups` (private) — for SQLite database backups
+3. Go to **Settings** → **API** → Copy `Project URL` and `service_role key`
+
+**Step 2: Deploy on Render**
+
+1. Fork/push TREK to your GitHub
+2. Go to [Render Dashboard](https://dashboard.render.com) → **New** → **Web Service**
+3. Connect your GitHub repo
+4. Settings:
+   - **Runtime:** Docker
+   - **Region:** Singapore (or nearest)
+   - **Plan:** Free
+5. Add environment variables:
+   - `SUPABASE_URL` = your Supabase project URL
+   - `SUPABASE_SERVICE_ROLE_KEY` = your service_role key
+   - `ENCRYPTION_KEY` = (generate: `openssl rand -hex 32`)
+6. Click Deploy
+
+**Step 3: Keep app awake (optional)**
+
+Free Render services sleep after 15 minutes of inactivity. Use [UptimeRobot](https://uptimerobot.com) (free) to ping your app's health endpoint every 14 minutes:
+
+```
+https://your-app.onrender.com/api/health
+```
+
+> [!NOTE]
+> File uploads are stored directly in Supabase Storage (never lost). The SQLite database is synced to Supabase every 3 minutes. Maximum data loss on unexpected crash: 3 minutes of database changes.
+
+</details>
+
 <h2 id="install-as-app-pwa">Install as App (PWA)</h2>
 
 TREK works as a Progressive Web App — no App Store needed.

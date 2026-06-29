@@ -408,6 +408,21 @@ function startAirTrailSync(): void {
   }, { timezone: tz });
 }
 
+// --- DB Sync to Supabase (every 3 minutes) ---
+let dbSyncTask: ScheduledTask | null = null;
+
+export function startDbSync(): void {
+  const { isSupabaseEnabled } = require('./services/supabaseStorage');
+  if (!isSupabaseEnabled()) return;
+
+  const { syncDbToSupabase } = require('./services/dbSync');
+  dbSyncTask = cron.schedule('*/3 * * * *', async () => {
+    try { await syncDbToSupabase(); }
+    catch (err) { logError(`DB sync to Supabase failed: ${err instanceof Error ? err.message : err}`); }
+  });
+  logInfo('DB sync to Supabase started (every 3 minutes)');
+}
+
 function stop(): void {
   if (currentTask) { currentTask.stop(); currentTask = null; }
   if (demoTask) { demoTask.stop(); demoTask = null; }
@@ -417,6 +432,7 @@ function stop(): void {
   if (trekPhotoCacheTask) { trekPhotoCacheTask.stop(); trekPhotoCacheTask = null; }
   if (placePhotoCacheTask) { placePhotoCacheTask.stop(); placePhotoCacheTask = null; }
   if (airtrailSyncTask) { airtrailSyncTask.stop(); airtrailSyncTask = null; }
+  if (dbSyncTask) { dbSyncTask.stop(); dbSyncTask = null; }
 }
 
 export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, purgeExpiredIdempotencyKeys, startTrekPhotoCacheCleanup, startPlacePhotoCacheCleanup, startAirTrailSync, loadSettings, saveSettings, VALID_INTERVALS };

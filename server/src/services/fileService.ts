@@ -26,6 +26,8 @@ export const BLOCKED_EXTENSIONS = [
 ];
 export const filesDir = path.join(__dirname, '../../uploads/files');
 
+import { isSupabaseEnabled, deleteFile as deleteSupabaseFile } from './supabaseStorage';
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -245,6 +247,11 @@ export async function permanentDeleteFile(file: TripFile): Promise<void> {
   } catch (e) {
     console.error(`[files] unlink failed for ${file.filename}, keeping DB row:`, e);
     throw e;
+  }
+  // Also delete from Supabase if enabled
+  if (isSupabaseEnabled()) {
+    try { await deleteSupabaseFile('trek-uploads', `files/${file.filename}`); }
+    catch (e) { console.error(`[files] Supabase delete failed for ${file.filename}:`, e); }
   }
   db.prepare('DELETE FROM trip_files WHERE id = ?').run(file.id);
 }

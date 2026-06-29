@@ -25,6 +25,7 @@ import { FilesService } from './files.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { MAX_FILE_SIZE, BLOCKED_EXTENSIONS, filesDir, getAllowedExtensions } from '../../services/fileService';
+import { saveUploadedFile } from '../../services/supabaseStorage';
 import { isDemoEmail } from '../../services/demo';
 
 const UPLOAD = {
@@ -89,7 +90,7 @@ export class FilesController {
 
   @Post()
   @UseInterceptors(FileInterceptor('file', UPLOAD))
-  upload(
+  async upload(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @UploadedFile() file: Express.Multer.File | undefined,
@@ -107,6 +108,8 @@ export class FilesController {
       throw new HttpException({ error: 'No file uploaded' }, 400);
     }
     this.assertLinkTargets(tripId, { reservation_id: body.reservation_id, place_id: body.place_id });
+    // Sync to Supabase Storage for persistence on ephemeral containers
+    await saveUploadedFile('files', file.filename, null, file.mimetype, path.join(filesDir, file.filename));
     const created = this.files.createFile(tripId, file, user.id, {
       place_id: body.place_id,
       description: body.description,
