@@ -148,8 +148,30 @@ function seedAddons(db: Database.Database): void {
   }
 }
 
+function enforceEnvAdminPassword(db: Database.Database): void {
+  try {
+    const env_admin_email = process.env.ADMIN_EMAIL;
+    const env_admin_pw = process.env.ADMIN_PASSWORD;
+    if (!env_admin_pw) return;
+
+    const bcrypt = require('bcryptjs');
+    const hash = bcrypt.hashSync(env_admin_pw, BCRYPT_COST);
+    
+    const adminEmail = env_admin_email || 'admin@trek.local';
+    const adminUser = db.prepare('SELECT id FROM users WHERE email = ? OR username = ?').get(adminEmail, 'admin') as { id: number } | undefined;
+    
+    if (adminUser) {
+      db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, adminUser.id);
+      console.log(`[DB] Updated/enforced admin password from ADMIN_PASSWORD environment variable (User ID: ${adminUser.id})`);
+    }
+  } catch (err: unknown) {
+    console.error('[ERROR] Error enforcing env admin password:', err instanceof Error ? err.message : err);
+  }
+}
+
 function runSeeds(db: Database.Database): void {
   seedAdminAccount(db);
+  enforceEnvAdminPassword(db);
   seedCategories(db);
   seedAddons(db);
 }
