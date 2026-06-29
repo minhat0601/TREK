@@ -274,7 +274,7 @@ function startTodoReminders(): void {
   }, { timezone: tz });
 }
 
-// Version check: daily at 9 AM — notify admins if a new TREK release is available
+// Version check: daily at 9 AM — notify admins if a new Tripp release is available
 let versionCheckTask: ScheduledTask | null = null;
 
 function startVersionCheck(): void {
@@ -292,7 +292,7 @@ function startVersionCheck(): void {
 }
 
 // Idempotency key cleanup: nightly at 3 AM — delete keys past their TTL.
-// The TTL must exceed any realistic offline window: the TREK client replays
+// The TTL must exceed any realistic offline window: the Tripp client replays
 // queued mutations with their X-Idempotency-Key when it reconnects, so a key
 // GC'd before the device comes back online would let the replay create a
 // duplicate. 24h was far too short for a multi-day offline trip; default 30d,

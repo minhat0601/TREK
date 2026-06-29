@@ -1,4 +1,4 @@
-# render.yaml — Render Blueprint for TREK
+# render.yaml — Render Blueprint for Tripp
 # https://render.com/docs/blueprint-spec
 services:
   - type: web

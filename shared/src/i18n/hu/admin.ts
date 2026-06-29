@@ -160,7 +160,7 @@ const admin: TranslationStrings = {
   'admin.packingTemplates.saveError': 'Nem sikerült menteni',
   'admin.tabs.addons': 'Bővítmények',
   'admin.addons.title': 'Bővítmények',
-  'admin.addons.subtitle': 'Funkciók engedélyezése vagy letiltása a TREK testreszabásához.',
+  'admin.addons.subtitle': 'Funkciók engedélyezése vagy letiltása a Tripp testreszabásához.',
   'admin.addons.catalog.packing.name': 'Listák',
   'admin.addons.catalog.packing.description': 'Csomagolási listák és teendők az utazásaidhoz',
   'admin.addons.catalog.budget.name': 'Költségvetés',
@@ -193,7 +193,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Időjárás adatok',
   'admin.weather.badge': '2026. március 24. óta',
   'admin.weather.description':
-    'A TREK az Open-Meteo-t használja időjárás-adatforrásként. Az Open-Meteo egy ingyenes, nyílt forráskódú időjárás-szolgáltatás — nincs szükség API kulcsra.',
+    'A Tripp az Open-Meteo-t használja időjárás-adatforrásként. Az Open-Meteo egy ingyenes, nyílt forráskódú időjárás-szolgáltatás — nincs szükség API kulcsra.',
   'admin.weather.forecast': '16 napos előrejelzés',
   'admin.weather.forecastDesc': 'Korábban 5 nap volt (OpenWeatherMap)',
   'admin.weather.climate': 'Történelmi klímaadatok',
@@ -253,14 +253,14 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'Betöltés...',
   'admin.github.error': 'Nem sikerült betölteni a kiadásokat',
   'admin.github.by': 'készítette',
-  'admin.github.support': 'Segít fenntartani a TREK fejlesztését',
+  'admin.github.support': 'Segít fenntartani a Tripp fejlesztését',
   'admin.update.available': 'Frissítés elérhető',
-  'admin.update.text': 'A TREK {version} elérhető. Jelenleg a {current} verziót használod.',
+  'admin.update.text': 'A Tripp {version} elérhető. Jelenleg a {current} verziót használod.',
   'admin.update.button': 'Megtekintés a GitHubon',
   'admin.update.install': 'Frissítés telepítése',
   'admin.update.confirmTitle': 'Frissítés telepítése?',
   'admin.update.confirmText':
-    'A TREK frissítésre kerül {current} verzióról {version} verzióra. A szerver ezután automatikusan újraindul.',
+    'A Tripp frissítésre kerül {current} verzióról {version} verzióra. A szerver ezután automatikusan újraindul.',
   'admin.update.dataInfo':
     'Minden adat (utazások, felhasználók, API kulcsok, feltöltések, Vacay, Atlas, költségvetések) megmarad.',
   'admin.update.warning': 'Az alkalmazás az újraindítás alatt rövid ideig nem lesz elérhető.',
@@ -272,9 +272,9 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Biztonsági mentéshez',
   'admin.update.howTo': 'Frissítési útmutató',
   'admin.update.dockerText':
-    'A TREK példányod Dockerben fut. A {version} verzióra frissítéshez futtasd a következő parancsokat a szervereden:',
+    'A Tripp példányod Dockerben fut. A {version} verzióra frissítéshez futtasd a következő parancsokat a szervereden:',
   'admin.update.nonDockerText':
-    'Ez a TREK példány nem Dockerben fut. A {version} verzióra frissítéshez futtasd újra a telepítési vagy frissítési módszert, amelyet használtál — például Proxmox Community Scripts esetén futtasd a frissítést az LXC konzolból:',
+    'Ez a Tripp példány nem Dockerben fut. A {version} verzióra frissítéshez futtasd újra a telepítési vagy frissítési módszert, amelyet használtál — például Proxmox Community Scripts esetén futtasd a frissítést az LXC konzolból:',
   'admin.update.wikiLink': 'Frissítési útmutató megnyitása',
   'admin.update.reloadHint': 'Kérjük, töltsd újra az oldalt néhány másodperc múlva.',
   'admin.tabs.permissions': 'Jogosultságok',

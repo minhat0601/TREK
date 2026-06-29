@@ -1,16 +1,16 @@
-# Spec - Fly.io Free Tier Deployment Design for TREK
+# Spec - Fly.io Free Tier Deployment Design for Tripp
 
-This document details the architectural design and deployment specification to run the TREK collaborative travel planner on Fly.io's Always Free Tier with persistent storage, zero code modifications, and 100% backward compatibility.
+This document details the architectural design and deployment specification to run the Tripp collaborative travel planner on Fly.io's Always Free Tier with persistent storage, zero code modifications, and 100% backward compatibility.
 
 ## 1. Goal
-Provide a robust, 100% free hosting setup for TREK using Fly.io, addressing the limitations of ephemeral containers and restricted free-tier resources (3GB maximum persistent storage volume limit).
+Provide a robust, 100% free hosting setup for Tripp using Fly.io, addressing the limitations of ephemeral containers and restricted free-tier resources (3GB maximum persistent storage volume limit).
 
 ## 2. Architecture & Data Flow
 
 ```mermaid
 graph TD
     Client[Web Browser / PWA Client] -- WebSockets / HTTPS --> FlyEdge[Fly.io Edge Proxy]
-    FlyEdge --> AppServer[TREK NestJS App Server]
+    FlyEdge --> AppServer[Tripp NestJS App Server]
     
     subgraph Container [/app]
         AppServer --> DBService[Database Service]
@@ -47,14 +47,14 @@ When the container boots:
 
 ## 4. Proposed Configuration Changes
 
-### [MODIFY] [Dockerfile](file:///Users/nhatminh/Desktop/TREK/Dockerfile)
+### [MODIFY] [Dockerfile](file:///Users/nhatminh/Desktop/Tripp/Dockerfile)
 Update the container startup command `CMD` to implement the dynamic environment check and symlink redirect.
 
 ```dockerfile
-CMD ["sh", "-c", "if [ ! -f /app/server/dist/index.js ] || [ ! -d /app/node_modules/tsconfig-paths ]; then echo 'FATAL: TREK application files are missing from the image.'; echo 'A volume is likely mounted over /app, which hides the app code.'; echo 'Mount ONLY your data and uploads dirs: -v ./data:/app/data -v ./uploads:/app/uploads'; echo 'Do NOT mount a volume at /app. See the Troubleshooting section of the README.'; exit 1; fi; if [ -n \"$FLY_APP_NAME\" ]; then echo '[Fly.io] Fly.io environment detected. Redirecting uploads to /app/data/uploads for single-volume persistence...'; rm -f /app/server/uploads; mkdir -p /app/data/uploads/files /app/data/uploads/covers /app/data/uploads/avatars /app/data/uploads/photos; ln -sf /app/data/uploads /app/server/uploads; fi; chown -R node:node /app/data /app/uploads 2>/dev/null || true; cd /app/server && exec gosu node node --require tsconfig-paths/register dist/index.js"]
+CMD ["sh", "-c", "if [ ! -f /app/server/dist/index.js ] || [ ! -d /app/node_modules/tsconfig-paths ]; then echo 'FATAL: Tripp application files are missing from the image.'; echo 'A volume is likely mounted over /app, which hides the app code.'; echo 'Mount ONLY your data and uploads dirs: -v ./data:/app/data -v ./uploads:/app/uploads'; echo 'Do NOT mount a volume at /app. See the Troubleshooting section of the README.'; exit 1; fi; if [ -n \"$FLY_APP_NAME\" ]; then echo '[Fly.io] Fly.io environment detected. Redirecting uploads to /app/data/uploads for single-volume persistence...'; rm -f /app/server/uploads; mkdir -p /app/data/uploads/files /app/data/uploads/covers /app/data/uploads/avatars /app/data/uploads/photos; ln -sf /app/data/uploads /app/server/uploads; fi; chown -R node:node /app/data /app/uploads 2>/dev/null || true; cd /app/server && exec gosu node node --require tsconfig-paths/register dist/index.js"]
 ```
 
-### [NEW] [fly.toml](file:///Users/nhatminh/Desktop/TREK/fly.toml)
+### [NEW] [fly.toml](file:///Users/nhatminh/Desktop/Tripp/fly.toml)
 Create the Fly.io deployment manifest at the project root:
 
 ```toml

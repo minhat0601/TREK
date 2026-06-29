@@ -12,7 +12,7 @@ let lastHash = '';
 // ---------------------------------------------------------------------------
 
 function getDbPath(): string {
-  return process.env.TREK_DB_FILE || path.join(__dirname, '../../data/travel.db');
+  return process.env.Tripp_DB_FILE || path.join(__dirname, '../../data/travel.db');
 }
 
 function fileHash(filePath: string): string {

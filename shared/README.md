@@ -1,6 +1,6 @@
 # @trek/shared
 
-Single source of truth for TREK's API contracts, expressed as [Zod](https://zod.dev) schemas
+Single source of truth for Tripp's API contracts, expressed as [Zod](https://zod.dev) schemas
 and consumed by **both** the server (request validation + inferred DTO types) and the client
 (typed requests/responses).
 
@@ -28,5 +28,5 @@ Both apps resolve `@trek/shared` to this package's TypeScript source:
 
 ## Not yet here
 
-The canonical **error envelope** is finalised in card **F5** (it must match TREK's current
+The canonical **error envelope** is finalised in card **F5** (it must match Tripp's current
 Express error responses byte-for-byte), so it is deliberately not invented in F1.

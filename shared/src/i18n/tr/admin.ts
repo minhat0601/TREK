@@ -204,7 +204,7 @@ const admin: TranslationStrings = {
   'admin.packingTemplates.saveError': 'Kaydedilemedi',
   'admin.tabs.addons': 'Eklentiler',
   'admin.addons.title': 'Eklentiler',
-  'admin.addons.subtitle': 'TREK deneyiminizi özelleştirmek için özellikleri etkinleştirin veya devre dışı bırakın.',
+  'admin.addons.subtitle': 'Tripp deneyiminizi özelleştirmek için özellikleri etkinleştirin veya devre dışı bırakın.',
   'admin.addons.catalog.packing.name': 'Listeler',
   'admin.addons.catalog.packing.description': 'Seyahatleriniz için paket listeleri ve yapılacak işler',
   'admin.addons.catalog.budget.name': 'Bütçe',
@@ -238,7 +238,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Hava Durumu Verileri',
   'admin.weather.badge': "24 Mart 2026'dan beri",
   'admin.weather.description':
-    "TREK, hava durumu veri kaynağı olarak Open-Meteo'yu kullanıyor. Open-Meteo ücretsiz, açık kaynaklı bir hava durumu hizmetidir; API anahtarı gerekmez.",
+    "Tripp, hava durumu veri kaynağı olarak Open-Meteo'yu kullanıyor. Open-Meteo ücretsiz, açık kaynaklı bir hava durumu hizmetidir; API anahtarı gerekmez.",
   'admin.weather.forecast': '16 günlük tahmin',
   'admin.weather.forecastDesc': 'Daha önce 5 gün (OpenWeatherMap)',
   'admin.weather.climate': 'Geçmiş iklim verileri',
@@ -297,14 +297,14 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'Yükleniyor...',
   'admin.github.error': 'Sürümler yüklenemedi',
   'admin.github.by': 'ile',
-  'admin.github.support': "TREK'i geliştirmeye devam etmeme yardımcı oluyor",
+  'admin.github.support': "Tripp'i geliştirmeye devam etmeme yardımcı oluyor",
   'admin.update.available': 'Güncelleme mevcut',
-  'admin.update.text': 'TREK {versiyon} mevcut. {current} çalıştırıyorsunuz.',
+  'admin.update.text': 'Tripp {versiyon} mevcut. {current} çalıştırıyorsunuz.',
   'admin.update.button': "GitHub'da görüntüle",
   'admin.update.install': 'Güncellemeyi Yükle',
   'admin.update.confirmTitle': 'Güncelleme Yüklensin mi?',
   'admin.update.confirmText':
-    'TREK, {current} sürümünden {version} sürümüne güncellenecek. Sunucu daha sonra otomatik olarak yeniden başlatılacaktır.',
+    'Tripp, {current} sürümünden {version} sürümüne güncellenecek. Sunucu daha sonra otomatik olarak yeniden başlatılacaktır.',
   'admin.update.dataInfo':
     'Tüm verileriniz (seyahatler, kullanıcılar, API anahtarları, yüklemeler, Vacay, Atlas, bütçeler) korunacaktır.',
   'admin.update.warning': 'Yeniden başlatma sırasında uygulama kısa süreliğine kullanılamayacaktır.',
@@ -316,9 +316,9 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Yedeklemeye Git',
   'admin.update.howTo': 'Nasıl Güncellenir?',
   'admin.update.dockerText':
-    "TREK örneğiniz Docker'da çalışır. {version} sürümüne güncellemek için sunucunuzda aşağıdaki komutları çalıştırın:",
+    "Tripp örneğiniz Docker'da çalışır. {version} sürümüne güncellemek için sunucunuzda aşağıdaki komutları çalıştırın:",
   'admin.update.nonDockerText':
-    'Bu TREK örneği Docker üzerinde çalışmıyor. {version} sürümüne güncellemek için kullandığınız kurulum veya güncelleme yöntemini yeniden çalıştırın — örneğin Proxmox Community Scripts kullanıyorsanız güncellemeyi LXC konsolundan çalıştırın:',
+    'Bu Tripp örneği Docker üzerinde çalışmıyor. {version} sürümüne güncellemek için kullandığınız kurulum veya güncelleme yöntemini yeniden çalıştırın — örneğin Proxmox Community Scripts kullanıyorsanız güncellemeyi LXC konsolundan çalıştırın:',
   'admin.update.wikiLink': 'Güncelleme kılavuzunu aç',
   'admin.update.reloadHint': 'Lütfen birkaç saniye içinde sayfayı yeniden yükleyin.',
   'admin.tabs.permissions': 'İzinler',

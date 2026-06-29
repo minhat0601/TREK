@@ -1,4 +1,4 @@
-# Fly.io deployment manifest for TREK
+# Fly.io deployment manifest for Tripp
 # Replace "your-trek-app-name" with your actual Fly.io app name.
 # Region "sin" = Singapore (lowest latency for Southeast Asia).
 # See full region list: https://fly.io/docs/reference/regions/

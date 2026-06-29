@@ -3,7 +3,7 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/logo-trek-light.gif" />
   <source media="(prefers-color-scheme: light)" srcset="docs/logo-trek-dark.gif" />
-  <img src="docs/logo-trek-dark.gif" alt="TREK" height="96" />
+  <img src="docs/logo-trek-dark.gif" alt="Tripp" height="96" />
 </picture>
 
 <br />
@@ -41,7 +41,7 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 
 <div align="center">
 
-<img src="https://github.com/mauriceboe/trek-media/releases/download/readme-assets/TREK1.gif" alt="TREK — 60-second tour" width="100%" />
+<img src="https://github.com/mauriceboe/trek-media/releases/download/readme-assets/Tripp1.gif" alt="Tripp — 60-second tour" width="100%" />
 
 </div>
 
@@ -64,7 +64,7 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 
 <picture>
   <source media="(max-width: 700px)" srcset="docs/tiles/grid-mobile.svg" />
-  <img src="docs/tiles/grid-desktop.svg" alt="TREK feature tiles" width="100%" />
+  <img src="docs/tiles/grid-desktop.svg" alt="Tripp feature tiles" width="100%" />
 </picture>
 
 <details>
@@ -137,7 +137,7 @@ A self-hosted, real-time collaborative travel planner — with maps, budgets, pa
 - **Atlas** — world map of visited countries, bucket list, travel stats, streak tracking, liquid-glass UI
 - **Journey** — magazine-style travel journal with entries, photos (Immich/Synology), maps, moods
 - **AirTrail** — connect a self-hosted AirTrail instance to import and sync flights into reservations
-- **MCP** — expose TREK to AI assistants via OAuth 2.1
+- **MCP** — expose Tripp to AI assistants via OAuth 2.1
 
 </td>
 <td width="50%" valign="top">
@@ -179,7 +179,7 @@ ENCRYPTION_KEY=$(openssl rand -hex 32) docker run -d -p 3000:3000 \
   -v ./data:/app/data -v ./uploads:/app/uploads mauriceboe/trek
 ```
 
-Open `http://localhost:3000`. On first boot TREK seeds an admin account — if you set `ADMIN_EMAIL`/`ADMIN_PASSWORD` those are used, otherwise the credentials are printed to the container log (`docker logs trek`).
+Open `http://localhost:3000`. On first boot Tripp seeds an admin account — if you set `ADMIN_EMAIL`/`ADMIN_PASSWORD` those are used, otherwise the credentials are printed to the container log (`docker logs trek`).
 
 <div align="center">
 
@@ -275,7 +275,7 @@ docker compose up -d
 <h2 id="helm-kubernetes">Helm (Kubernetes)</h2>
 
 ```bash
-helm repo add trek https://mauriceboe.github.io/TREK
+helm repo add trek https://mauriceboe.github.io/Tripp
 helm repo update
 helm install trek trek/trek
 ```
@@ -287,7 +287,7 @@ See [`charts/README.md`](https://github.com/mauriceboe/TREK/blob/main/charts/REA
 <details>
 <summary>Deploy to Fly.io with a single persistent volume</summary>
 
-TREK runs on Fly.io's free tier with a single volume for the database and uploads.
+Tripp runs on Fly.io's free tier with a single volume for the database and uploads.
 
 **Prerequisites:** [Install flyctl](https://fly.io/docs/flyctl/install/) and sign up at [fly.io](https://fly.io).
 
@@ -318,7 +318,7 @@ Open `https://<your-app-name>.fly.dev`. First-boot credentials appear in `fly lo
 <details>
 <summary>Deploy to Render with Supabase Storage for persistence</summary>
 
-TREK runs on Render's free tier with Supabase Storage for file uploads and database backups. **No credit card required** for either service.
+Tripp runs on Render's free tier with Supabase Storage for file uploads and database backups. **No credit card required** for either service.
 
 **Prerequisites:**
 - [Supabase](https://supabase.com) account (free)
@@ -334,7 +334,7 @@ TREK runs on Render's free tier with Supabase Storage for file uploads and datab
 
 **Step 2: Deploy on Render**
 
-1. Fork/push TREK to your GitHub
+1. Fork/push Tripp to your GitHub
 2. Go to [Render Dashboard](https://dashboard.render.com) → **New** → **Web Service**
 3. Connect your GitHub repo
 4. Settings:
@@ -362,13 +362,13 @@ https://your-app.onrender.com/api/health
 
 <h2 id="install-as-app-pwa">Install as App (PWA)</h2>
 
-TREK works as a Progressive Web App — no App Store needed.
+Tripp works as a Progressive Web App — no App Store needed.
 
-1. Open TREK in the browser (HTTPS required)
+1. Open Tripp in the browser (HTTPS required)
 2. **iOS**: Share ▸ *Add to Home Screen*
 3. **Android**: Menu ▸ *Install app* (or *Add to Home Screen*)
 
-TREK then launches fullscreen with its own icon, just like a native app.
+Tripp then launches fullscreen with its own icon, just like a native app.
 
 <br />
 
@@ -407,7 +407,7 @@ The script creates a timestamped DB backup before making changes and prompts for
 
 <h2 id="reverse-proxy">Reverse Proxy</h2>
 
-For production, put TREK behind a TLS-terminating reverse proxy. TREK uses WebSockets for real-time sync, so the proxy **must** support WebSocket upgrades on `/ws`.
+For production, put Tripp behind a TLS-terminating reverse proxy. Tripp uses WebSockets for real-time sync, so the proxy **must** support WebSocket upgrades on `/ws`.
 
 <details>
 <summary>Nginx</summary>
@@ -532,5 +532,5 @@ for full third-party attributions.
 
 ## License
 
-TREK is [AGPL v3](LICENSE). Self-host freely for personal or internal company use. If you modify and offer TREK as a network service to third parties, your modifications must be open-sourced under the same licence.
+Tripp is [AGPL v3](LICENSE). Self-host freely for personal or internal company use. If you modify and offer Tripp as a network service to third parties, your modifications must be open-sourced under the same licence.
 

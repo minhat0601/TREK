@@ -1,4 +1,4 @@
-// Shared types for the TREK travel planner.
+// Shared types for the Tripp travel planner.
 //
 // Domain entity/response types are now sourced from @trek/shared — the single
 // source of truth shared with the server. The Zod schemas there are built to

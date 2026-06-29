@@ -1,9 +1,9 @@
-# TREK Helm Chart
+# Tripp Helm Chart
 
-This is a minimal Helm chart for deploying the TREK app.
+This is a minimal Helm chart for deploying the Tripp app.
 
 ## Features
-- Deploys the TREK container
+- Deploys the Tripp container
 - Exposes port 3000 via Service
 - Optional persistent storage for `/app/data` and `/app/uploads`
 - Configurable environment variables and secrets
@@ -15,7 +15,7 @@ This is a minimal Helm chart for deploying the TREK app.
 A hosted Helm repository is available:
 
 ```sh
-helm repo add trek https://mauriceboe.github.io/TREK
+helm repo add trek https://mauriceboe.github.io/Tripp
 helm repo update
 helm install trek trek/trek
 ```

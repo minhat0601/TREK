@@ -1,6 +1,6 @@
 # Install: Portainer
 
-Install TREK on Portainer using a Stack (Docker Compose).
+Install Tripp on Portainer using a Stack (Docker Compose).
 
 ## Prerequisite
 
