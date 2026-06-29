@@ -128,6 +128,9 @@ export interface Settings {
   dashboard_fx_from?: string
   dashboard_fx_to?: string
   dashboard_timezones?: string[]
+  payment_bank_id?: string
+  payment_account_no?: string
+  payment_account_name?: string
 }
 
 export interface AssignmentsMap {
