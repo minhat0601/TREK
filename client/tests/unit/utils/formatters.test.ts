@@ -1,10 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { formatDate, formatTime, dayTotalCost, currencyDecimals } from '../../../src/utils/formatters';
+import { formatDate, formatTime, dayTotalCost, currencyDecimals, formatMoney } from '../../../src/utils/formatters';
 import type { AssignmentsMap } from '../../../src/types';
 
 // dayTotalCost intentionally exercises edge-case price inputs (string / non-numeric),
 // which are looser than the canonical AssignmentsMap shape — hence the casts below.
 const asMap = (m: unknown): AssignmentsMap => m as AssignmentsMap;
+
+describe('formatMoney', () => {
+  it('formats JPY and VND with zero decimal places', () => {
+    // VND is formatted using vi-VN locale style
+    const resVnd = formatMoney(150000, 'VND', 'vi');
+    // Using regex because different node/OS versions might render slightly different space characters
+    expect(resVnd).toMatch(/150\.000\s*₫/);
+  });
+
+  it('formats EUR and USD with two decimal places', () => {
+    const resUsd = formatMoney(1234.56, 'USD', 'en');
+    expect(resUsd).toMatch(/\$1,234\.56/);
+  });
+});
 
 describe('currencyDecimals', () => {
   it('returns 0 for zero-decimal currencies', () => {
