@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { User, Save, Lock, KeyRound, AlertTriangle, Shield, Camera, Trash2, Copy, Download, Printer } from 'lucide-react'
+import { User, Save, Lock, KeyRound, AlertTriangle, Shield, Camera, Trash2, Copy, Download, Printer, QrCode } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from '../../i18n'
 import { useAuthStore } from '../../store/authStore'
+import { useSettingsStore } from '../../store/settingsStore'
 import { useToast } from '../shared/Toast'
 import { authApi, adminApi } from '../../api/client'
 import { getApiErrorMessage } from '../../types'
@@ -22,6 +23,20 @@ export default function AccountTab(): React.ReactElement {
 
   const [saving, setSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean | 'blocked'>(false)
+
+  const settings = useSettingsStore(s => s.settings)
+  const updateSettings = useSettingsStore(s => s.updateSettings)
+
+  // Payment Info
+  const [bankId, setBankId] = useState(settings.payment_bank_id || '')
+  const [accountNo, setAccountNo] = useState(settings.payment_account_no || '')
+  const [accountName, setAccountName] = useState(settings.payment_account_name || '')
+
+  useEffect(() => {
+    setBankId(settings.payment_bank_id || '')
+    setAccountNo(settings.payment_account_no || '')
+    setAccountName(settings.payment_account_name || '')
+  }, [settings])
 
   // Profile
   const [username, setUsername] = useState<string>(user?.username || '')
@@ -498,6 +513,81 @@ export default function AccountTab(): React.ReactElement {
             <span className="hidden sm:inline">{t('settings.deleteAccount')}</span>
             <span className="sm:hidden">{t('common.delete')}</span>
           </button>
+        </div>
+      </Section>
+
+      <Section title="Thông tin thanh toán (VietQR)" icon={QrCode}>
+        <p className="text-sm m-0 text-content-muted mb-3" style={{ lineHeight: 1.5 }}>
+          Cấu hình thông tin ngân hàng của bồ để người khác có thể quét mã VietQR chuyển khoản trực tiếp khi quyết toán chi phí chuyến đi.
+        </p>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Ngân hàng</label>
+            <select
+              value={bankId}
+              onChange={e => setBankId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-surface-card text-content focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+            >
+              <option value="">-- Chọn ngân hàng --</option>
+              <option value="vcb">Vietcombank (VCB)</option>
+              <option value="tcb">Techcombank (TCB)</option>
+              <option value="mbb">MB Bank (MB)</option>
+              <option value="ctg">VietinBank</option>
+              <option value="bidv">BIDV</option>
+              <option value="acb">ACB</option>
+              <option value="tpb">TPBank</option>
+              <option value="vpb">VPBank</option>
+              <option value="stb">Sacombank</option>
+              <option value="vib">VIB</option>
+              <option value="vba">Agribank</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Số tài khoản</label>
+            <input
+              type="text"
+              value={accountNo}
+              onChange={e => setAccountNo(e.target.value.replace(/\D/g, ''))}
+              placeholder="Nhập số tài khoản ngân hàng"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent bg-surface-card text-content"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Tên chủ tài khoản (Chữ hoa không dấu)</label>
+            <input
+              type="text"
+              value={accountName}
+              onChange={e => setAccountName(e.target.value.toUpperCase())}
+              placeholder="VD: NGUYEN VAN A"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent bg-surface-card text-content"
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 16 }}>
+            <button
+              onClick={async () => {
+                if (accountNo && !bankId) return toast.error("Vui lòng chọn ngân hàng")
+                if (bankId && !accountNo) return toast.error("Vui lòng nhập số tài khoản")
+                setSaving(true)
+                try {
+                  await updateSettings({
+                    payment_bank_id: bankId,
+                    payment_account_no: accountNo,
+                    payment_account_name: accountName,
+                  })
+                  toast.success("Đã lưu cấu hình thanh toán VietQR!")
+                } catch (err: unknown) {
+                  toast.error(getApiErrorMessage(err, t('common.error')))
+                } finally {
+                  setSaving(false)
+                }
+              }}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-700 disabled:bg-slate-400"
+            >
+              {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+              Lưu cấu hình thanh toán
+            </button>
+          </div>
         </div>
       </Section>
 
