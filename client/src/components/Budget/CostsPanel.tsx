@@ -1,6 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowDown, ArrowUp, BarChart3, Plus, Search, ArrowRight, ArrowLeftRight, Check, RotateCcw, Pencil, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, BarChart3, Plus, Search, ArrowRight, ArrowLeftRight, Check, RotateCcw, Pencil, Trash2, QrCode, X, Copy } from 'lucide-react'
+
+function removeVietnameseTones(str: string): string {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D');
+}
 import { useTripStore } from '../../store/tripStore'
 import { useAuthStore } from '../../store/authStore'
 import { useSettingsStore } from '../../store/settingsStore'
@@ -72,6 +80,7 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
   const [editing, setEditing] = useState<BudgetItem | null>(null)
   const [editingSettlement, setEditingSettlement] = useState<Settlement | null>(null)
   const [addingPayment, setAddingPayment] = useState(false)
+  const [activeQrFlow, setActiveQrFlow] = useState<any | null>(null)
 
   const people = tripMembers
   const personById = useCallback((id: number) => people.find(p => p.id === id), [people])
@@ -363,6 +372,96 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
           onSaved={() => { setEditingSettlement(null); setAddingPayment(false); loadSettlement() }} />
       )}
 
+      {activeQrFlow && (
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center p-5 bg-black/60 backdrop-blur-sm"
+          onClick={() => setActiveQrFlow(null)}
+        >
+          <div
+            className="bg-surface-card border border-edge rounded-2xl p-6 max-w-sm w-full shadow-2xl relative flex flex-col items-center"
+            onClick={e => e.stopPropagation()}
+            style={{ animation: 'scaleUp 0.15s ease-out' }}
+          >
+            <button
+              onClick={() => setActiveQrFlow(null)}
+              className="absolute top-4 right-4 p-1 rounded-full hover:bg-surface-hover text-content-muted"
+            >
+              <X size={18} />
+            </button>
+
+            <h3 className="text-content font-bold text-lg mb-4 text-center">Quét mã VietQR chuyển khoản</h3>
+
+            <div className="flex items-center gap-3.5 mb-5 w-full justify-center bg-surface-secondary/40 py-2.5 px-4 rounded-xl border border-edge/60">
+              <span className="font-semibold text-sm text-content">{personName(activeQrFlow.from.user_id)}</span>
+              <ArrowRight size={14} className="text-content-faint" />
+              <span className="font-semibold text-sm text-content">
+                {activeQrFlow.to.user_id === me ? t('costs.youLower') : personName(activeQrFlow.to.user_id)}
+              </span>
+            </div>
+
+            {/* Generated QR Code from VietQR.io */}
+            <div className="bg-white p-3 rounded-2xl border border-edge shadow-sm mb-5 flex items-center justify-center">
+              <img
+                src={`https://img.vietqr.io/image/${activeQrFlow.to.payment_bank_id}-${activeQrFlow.to.payment_account_no}-compact.png?amount=${activeQrFlow.amount}&addInfo=${encodeURIComponent(
+                  removeVietnameseTones(personName(activeQrFlow.from.user_id)) + ' ck chuyen di ' + removeVietnameseTones(trip?.title || '')
+                )}&accountName=${encodeURIComponent(activeQrFlow.to.payment_account_name || '')}`}
+                alt="VietQR Code"
+                style={{ width: 200, height: 200, display: 'block', objectFit: 'contain' }}
+              />
+            </div>
+
+            {/* Copyable Details */}
+            <div className="w-full space-y-2.5 text-sm">
+              <div className="flex items-center justify-between border-b border-edge-secondary pb-2">
+                <span className="text-content-muted">Ngân hàng</span>
+                <span className="font-semibold text-content uppercase">{activeQrFlow.to.payment_bank_id}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-edge-secondary pb-2">
+                <span className="text-content-muted">Số tài khoản</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold text-content">{activeQrFlow.to.payment_account_no}</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(activeQrFlow.to.payment_account_no)
+                      toast.success("Đã copy số tài khoản")
+                    }}
+                    className="p-1 rounded hover:bg-surface-hover text-content-muted"
+                  >
+                    <Copy size={12} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between border-b border-edge-secondary pb-2">
+                <span className="text-content-muted">Chủ tài khoản</span>
+                <span className="font-semibold text-content uppercase">{activeQrFlow.to.payment_account_name}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-edge-secondary pb-2">
+                <span className="text-content-muted">Số tiền</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-content text-emerald-600">{fmt(activeQrFlow.amount)}</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(String(activeQrFlow.amount))
+                      toast.success("Đã copy số tiền")
+                    }}
+                    className="p-1 rounded hover:bg-surface-hover text-content-muted"
+                  >
+                    <Copy size={12} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setActiveQrFlow(null)}
+              className="mt-6 w-full py-2.5 px-4 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-700 active:scale-[0.98] transition-all"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      )}
+
       <style>{`
         .costs-root {
           --c-bg: #f8fafc; --c-bg2: oklch(0.965 0.01 70);
@@ -420,6 +519,16 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
               <span className="text-content" style={{ fontSize: 14, fontWeight: 700 }}>{fmt(f.amount)}</span>
+              {f.to.payment_account_no && (
+                <button
+                  onClick={() => setActiveQrFlow(f)}
+                  className="bg-surface-secondary hover:bg-surface-hover border border-edge text-content-secondary"
+                  style={{ padding: '7px 10px', borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}
+                >
+                  <QrCode size={13} />
+                  <span>QR</span>
+                </button>
+              )}
               {canEdit && <button onClick={() => settleFlow(f.from.user_id, f.to.user_id, f.amount)} className="bg-[var(--text-primary)] text-[var(--bg-primary)]" style={{ padding: '7px 12px', borderRadius: 9, fontSize: 12, fontWeight: 600, border: 0, cursor: 'pointer', fontFamily: 'inherit' }}>{t('costs.settle')}</button>}
             </div>
           </div>
