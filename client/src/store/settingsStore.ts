@@ -15,6 +15,22 @@ interface SettingsState {
   updateSettings: (settingsObj: Partial<Settings>) => Promise<void>
 }
 
+function detectBrowserLanguage(): string {
+  if (typeof navigator === 'undefined') return 'vi'
+  const browserLangs = navigator.languages?.length
+    ? navigator.languages
+    : navigator.language ? [navigator.language] : []
+  for (const lang of browserLangs) {
+    const prefix = lang.split('-')[0]?.toLowerCase()
+    if (prefix === 'vi') return 'vi'
+    if (prefix === 'en') return 'en'
+    if (prefix === 'de') return 'de'
+    if (prefix === 'fr') return 'fr'
+    if (prefix === 'es') return 'es'
+  }
+  return 'vi'
+}
+
 // Returns true when the user has explicitly chosen a language (persisted in localStorage).
 // Use this instead of reading localStorage directly so the key stays encapsulated here.
 export const hasStoredLanguage = (): boolean =>
@@ -28,10 +44,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     default_zoom: 6,
     dark_mode: false,
     default_currency: 'VND',
-    language: localStorage.getItem('app_language') || 'en',
-    temperature_unit: 'fahrenheit',
+    language: localStorage.getItem('app_language') || detectBrowserLanguage() || 'vi',
+    temperature_unit: 'celsius',
     distance_unit: 'metric',
-    time_format: '12h',
+    time_format: '24h',
     show_place_description: false,
     optimize_from_accommodation: true,
     map_provider: 'leaflet',

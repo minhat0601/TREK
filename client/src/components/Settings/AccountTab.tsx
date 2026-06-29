@@ -32,6 +32,43 @@ export default function AccountTab(): React.ReactElement {
   const [accountNo, setAccountNo] = useState(settings.payment_account_no || '')
   const [accountName, setAccountName] = useState(settings.payment_account_name || '')
 
+  interface BankInfo {
+    code: string
+    shortName: string
+    logo: string
+  }
+  const [banksList, setBanksList] = useState<BankInfo[]>([])
+
+  useEffect(() => {
+    fetch('https://api.vietqr.io/v2/banks')
+      .then(res => res.json())
+      .then(json => {
+        if (json.code === '00' && Array.isArray(json.data)) {
+          const list = json.data.map((b: any) => ({
+            code: b.code.toLowerCase(),
+            shortName: b.shortName || b.name,
+            logo: b.logo,
+          }))
+          setBanksList(list)
+        }
+      })
+      .catch(() => {
+        setBanksList([
+          { code: 'vcb', shortName: 'Vietcombank (VCB)', logo: 'https://api.vietqr.io/img/VCB.png' },
+          { code: 'tcb', shortName: 'Techcombank (TCB)', logo: 'https://api.vietqr.io/img/TCB.png' },
+          { code: 'mbb', shortName: 'MB Bank (MB)', logo: 'https://api.vietqr.io/img/MB.png' },
+          { code: 'ctg', shortName: 'VietinBank', logo: 'https://api.vietqr.io/img/CTG.png' },
+          { code: 'bidv', shortName: 'BIDV', logo: 'https://api.vietqr.io/img/BIDV.png' },
+          { code: 'acb', shortName: 'ACB', logo: 'https://api.vietqr.io/img/ACB.png' },
+          { code: 'tpb', shortName: 'TPBank', logo: 'https://api.vietqr.io/img/TPB.png' },
+          { code: 'vpb', shortName: 'VPBank', logo: 'https://api.vietqr.io/img/VPB.png' },
+          { code: 'stb', shortName: 'Sacombank', logo: 'https://api.vietqr.io/img/STB.png' },
+          { code: 'vib', shortName: 'VIB', logo: 'https://api.vietqr.io/img/VIB.png' },
+          { code: 'vba', shortName: 'Agribank', logo: 'https://api.vietqr.io/img/VBA.png' },
+        ])
+      })
+  }, [])
+
   useEffect(() => {
     setBankId(settings.payment_bank_id || '')
     setAccountNo(settings.payment_account_no || '')
@@ -523,24 +560,28 @@ export default function AccountTab(): React.ReactElement {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Ngân hàng</label>
-            <select
-              value={bankId}
-              onChange={e => setBankId(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-surface-card text-content focus:ring-2 focus:ring-slate-400 focus:border-transparent"
-            >
-              <option value="">-- Chọn ngân hàng --</option>
-              <option value="vcb">Vietcombank (VCB)</option>
-              <option value="tcb">Techcombank (TCB)</option>
-              <option value="mbb">MB Bank (MB)</option>
-              <option value="ctg">VietinBank</option>
-              <option value="bidv">BIDV</option>
-              <option value="acb">ACB</option>
-              <option value="tpb">TPBank</option>
-              <option value="vpb">VPBank</option>
-              <option value="stb">Sacombank</option>
-              <option value="vib">VIB</option>
-              <option value="vba">Agribank</option>
-            </select>
+            <div className="flex items-center gap-2">
+              <select
+                value={bankId}
+                onChange={e => setBankId(e.target.value)}
+                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-surface-card text-content focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+              >
+                <option value="">-- Chọn ngân hàng --</option>
+                {banksList.map(b => (
+                  <option key={b.code} value={b.code}>
+                    {b.shortName}
+                  </option>
+                ))}
+              </select>
+              {bankId && banksList.find(b => b.code === bankId)?.logo && (
+                <img
+                  src={banksList.find(b => b.code === bankId)?.logo}
+                  alt={bankId}
+                  className="h-8 object-contain bg-white p-1 border border-edge rounded-lg"
+                  style={{ minWidth: '60px' }}
+                />
+              )}
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Số tài khoản</label>
