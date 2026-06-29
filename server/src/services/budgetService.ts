@@ -425,15 +425,47 @@ export function calculateSettlement(
   debtors.sort((a, b) => b.amount - a.amount);
   creditors.sort((a, b) => b.amount - a.amount);
 
-  const flows: { from: { user_id: number; username: string; avatar_url: string | null }; to: { user_id: number; username: string; avatar_url: string | null }; amount: number }[] = [];
+function getUserPaymentDetails(userId: number) {
+  const rows = db.prepare("SELECT key, value FROM settings WHERE user_id = ? AND key IN ('payment_bank_id', 'payment_account_no', 'payment_account_name')").all(userId) as { key: string; value: string }[];
+  const details: Record<string, string> = {};
+  for (const r of rows) {
+    try {
+      details[r.key] = JSON.parse(r.value);
+    } catch {
+      details[r.key] = r.value;
+    }
+  }
+  return details;
+}
+
+  const flows: {
+    from: { user_id: number; username: string; avatar_url: string | null };
+    to: {
+      user_id: number;
+      username: string;
+      avatar_url: string | null;
+      payment_bank_id?: string | null;
+      payment_account_no?: string | null;
+      payment_account_name?: string | null;
+    };
+    amount: number;
+  }[] = [];
 
   let di = 0, ci = 0;
   while (di < debtors.length && ci < creditors.length) {
     const transfer = Math.min(debtors[di].amount, creditors[ci].amount);
     if (transfer > 0.01) {
+      const toDetails = getUserPaymentDetails(creditors[ci].user_id);
       flows.push({
         from: { user_id: debtors[di].user_id, username: debtors[di].username, avatar_url: debtors[di].avatar_url },
-        to: { user_id: creditors[ci].user_id, username: creditors[ci].username, avatar_url: creditors[ci].avatar_url },
+        to: {
+          user_id: creditors[ci].user_id,
+          username: creditors[ci].username,
+          avatar_url: creditors[ci].avatar_url,
+          payment_bank_id: toDetails.payment_bank_id || null,
+          payment_account_no: toDetails.payment_account_no || null,
+          payment_account_name: toDetails.payment_account_name || null,
+        },
         amount: Math.round(transfer * 100) / 100,
       });
     }
