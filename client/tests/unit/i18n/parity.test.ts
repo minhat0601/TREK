@@ -20,6 +20,7 @@ import ja from '@trek/shared/i18n/ja'
 import ko from '@trek/shared/i18n/ko'
 import uk from '@trek/shared/i18n/uk'
 import gr from '@trek/shared/i18n/gr'
+import vi from '@trek/shared/i18n/vi'
 
 // Runtime guard for the aggregated i18n bundles. `t()` resolves keys against the
 // active locale's flat dot-key map (see TranslationContext), so a key that is
@@ -33,7 +34,7 @@ import gr from '@trek/shared/i18n/gr'
 
 const NON_EN_LOCALES: Record<string, TranslationStrings> = {
   de, es, fr, hu, it: itIT, tr, ru, zh, 'zh-TW': zhTW, nl, id: idID,
-  ar, br, cs, pl, ja, ko, uk, gr,
+  ar, br, cs, pl, ja, ko, uk, gr, vi,
 }
 
 const enKeys = new Set(Object.keys(en))
@@ -41,7 +42,7 @@ const enKeys = new Set(Object.keys(en))
 describe('i18n locale key parity', () => {
   it('covers every non-en locale', () => {
     // Keep the assertion set in lockstep with the supported language list minus en.
-    expect(Object.keys(NON_EN_LOCALES)).toHaveLength(19)
+    expect(Object.keys(NON_EN_LOCALES)).toHaveLength(20)
   })
 
   for (const [locale, strings] of Object.entries(NON_EN_LOCALES)) {
