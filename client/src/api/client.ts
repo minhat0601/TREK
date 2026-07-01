@@ -1343,7 +1343,7 @@ export const addonsApi = {
 export const oauthApi = {
   clients: {
     list: async (): Promise<any> => ({ clients: [] }),
-    create: async (...args: any[]): Promise<any> => ({ client: {} }),
+    create: async (...args: any[]): Promise<any> => ({ client: { id: 'mock', name: 'Mock Client', client_id: 'mock', client_secret: 'mock', redirect_uris: [], scopes: [] } }),
     delete: async (...args: any[]): Promise<any> => ({ success: true }),
     rotate: async (...args: any[]): Promise<any> => ({ client_secret: '' }),
   },
@@ -1549,7 +1549,17 @@ export const journeyApi = {
 }
 
 export const notificationsApi = {
-  getPreferences: async (...args: any[]): Promise<any> => ({ preferences: {} }),
+  getPreferences: async (...args: any[]): Promise<any> => ({
+    available_channels: { email: true, webhook: false, inapp: true, ntfy: false },
+    event_types: ['trip_invite', 'collab_chat', 'collab_poll', 'collab_note'],
+    implemented_combinations: {
+      trip_invite: ['email', 'inapp'],
+      collab_chat: ['inapp'],
+      collab_poll: ['inapp'],
+      collab_note: ['inapp']
+    },
+    preferences: {}
+  }),
   updatePreferences: async (...args: any[]): Promise<any> => ({ success: true }),
   testSmtp: async (...args: any[]): Promise<any> => ({ success: true }),
   testWebhook: async (...args: any[]): Promise<any> => ({ success: true }),
