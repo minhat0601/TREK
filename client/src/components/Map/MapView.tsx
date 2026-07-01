@@ -203,6 +203,14 @@ function MapController({ center, zoom }: MapControllerProps) {
   const prevCenter = useRef(center)
 
   useEffect(() => {
+    map.invalidateSize()
+    const timer = setTimeout(() => {
+      map.invalidateSize()
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [map])
+
+  useEffect(() => {
     if (prevCenter.current[0] !== center[0] || prevCenter.current[1] !== center[1]) {
       map.setView(center, zoom)
       prevCenter.current = center
