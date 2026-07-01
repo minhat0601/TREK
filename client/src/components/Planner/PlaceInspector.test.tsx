@@ -427,7 +427,7 @@ describe('PlaceInspector', () => {
     render(
       <PlaceInspector
         {...defaultProps}
-        tripMembers={members}
+        tripMembers={members as any}
         selectedDayId={1}
         selectedAssignmentId={99}
         assignments={{ '1': assignmentInDay }}
@@ -540,7 +540,7 @@ describe('PlaceInspector', () => {
     render(
       <PlaceInspector
         {...defaultProps}
-        tripMembers={members}
+        tripMembers={members as any}
         selectedDayId={1}
         selectedAssignmentId={99}
         assignments={{ '1': assignmentInDay }}
@@ -650,7 +650,7 @@ describe('PlaceInspector', () => {
     render(
       <PlaceInspector
         {...defaultProps}
-        tripMembers={[member]}
+        tripMembers={[member as any]}
         selectedDayId={1}
         selectedAssignmentId={99}
         assignments={{ '1': [{ id: 99, place, day_id: 1, place_id: place.id, order_index: 0, notes: null }] }}

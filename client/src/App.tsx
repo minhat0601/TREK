@@ -22,7 +22,6 @@ import OAuthAuthorizePage from './pages/OAuthAuthorizePage'
 import { ToastContainer } from './components/shared/Toast'
 import BottomNav from './components/Layout/BottomNav'
 import { TranslationProvider, useTranslation } from './i18n'
-import { authApi } from './api/client'
 import { usePermissionsStore, PermissionLevel } from './store/permissionsStore'
 import { useInAppNotificationListener } from './hooks/useInAppNotificationListener.ts'
 import { registerSyncTriggers, unregisterSyncTriggers } from './sync/syncTriggers'
@@ -118,40 +117,19 @@ export default function App() {
         loadUser()
       }
     }
-    authApi.getAppConfig().then(async (config: { demo_mode?: boolean; dev_mode?: boolean; is_prerelease?: boolean; has_maps_key?: boolean; version?: string; timezone?: string; require_mfa?: boolean; trip_reminders_enabled?: boolean; places_photos_enabled?: boolean; places_autocomplete_enabled?: boolean; places_details_enabled?: boolean; permissions?: Record<string, PermissionLevel> }) => {
-      setDemoMode(!!config?.demo_mode)
-      if (config?.dev_mode) setDevMode(true)
-      if (config?.is_prerelease !== undefined) setIsPrerelease(config.is_prerelease)
-      if (config?.version) setAppVersion(config.version)
-      if (config?.has_maps_key !== undefined) setHasMapsKey(config.has_maps_key)
-      if (config?.timezone) setServerTimezone(config.timezone)
-      if (config?.require_mfa !== undefined) setAppRequireMfa(!!config.require_mfa)
-      if (config?.trip_reminders_enabled !== undefined) setTripRemindersEnabled(config.trip_reminders_enabled)
-      if (config?.places_photos_enabled !== undefined) setPlacesPhotosEnabled(config.places_photos_enabled)
-      if (config?.places_autocomplete_enabled !== undefined) setPlacesAutocompleteEnabled(config.places_autocomplete_enabled)
-      if (config?.places_details_enabled !== undefined) setPlacesDetailsEnabled(config.places_details_enabled)
-      if (config?.permissions) usePermissionsStore.getState().setPermissions(config.permissions)
-
-      if (config?.version) {
-        const storedVersion = localStorage.getItem('trek_app_version')
-        if (storedVersion && storedVersion !== config.version) {
-          try {
-            if ('caches' in window) {
-              const names = await caches.keys()
-              await Promise.all(names.map(n => caches.delete(n)))
-            }
-            if ('serviceWorker' in navigator) {
-              const regs = await navigator.serviceWorker.getRegistrations()
-              await Promise.all(regs.map(r => r.unregister()))
-            }
-          } catch {}
-          localStorage.setItem('trek_app_version', config.version)
-          window.location.reload()
-          return
-        }
-        localStorage.setItem('trek_app_version', config.version)
-      }
-    }).catch(() => {})
+    
+    // Set default client configurations for the serverless SPA
+    setDemoMode(false)
+    setDevMode(false)
+    setIsPrerelease(false)
+    setAppVersion('3.1.3')
+    setHasMapsKey(true)
+    setServerTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone)
+    setAppRequireMfa(false)
+    setTripRemindersEnabled(false)
+    setPlacesPhotosEnabled(true)
+    setPlacesAutocompleteEnabled(true)
+    setPlacesDetailsEnabled(true)
   }, [])
 
   const { settings } = useSettingsStore()

@@ -8,7 +8,7 @@ import { useAuthStore } from '../../store/authStore'
 import VacayStats from './VacayStats'
 
 const buildStat = (overrides: Record<string, unknown> = {}) => ({
-  user_id: 1,
+  user_id: '1',
   person_name: 'Alice',
   person_color: '#6366f1',
   vacation_days: 25,
@@ -56,8 +56,8 @@ describe('VacayStats', () => {
   })
 
   it('FE-COMP-VACAYSTATS-004: Current user stat shows "(you)" label', () => {
-    seedStore(useAuthStore, { user: { id: 1 } })
-    seedStore(useVacayStore, { stats: [buildStat({ user_id: 1 })] })
+    seedStore(useAuthStore, { user: { id: '1' } })
+    seedStore(useVacayStore, { stats: [buildStat({ user_id: '1' })] })
     render(<VacayStats />)
     expect(screen.getByText(/\(you\)/)).toBeInTheDocument()
   })
@@ -90,8 +90,8 @@ describe('VacayStats', () => {
 
   it('FE-COMP-VACAYSTATS-008: Clicking entitlement tile opens inline editor', async () => {
     const user = userEvent.setup()
-    seedStore(useAuthStore, { user: { id: 1 } })
-    seedStore(useVacayStore, { stats: [buildStat({ user_id: 1 })] })
+    seedStore(useAuthStore, { user: { id: '1' } })
+    seedStore(useVacayStore, { stats: [buildStat({ user_id: '1' })] })
     render(<VacayStats />)
     // The vacation_days tile shows "25" as a standalone div; click it to trigger edit
     await user.click(screen.getByText('25'))
@@ -100,21 +100,21 @@ describe('VacayStats', () => {
 
   it('FE-COMP-VACAYSTATS-009: Pressing Enter in editor calls updateVacationDays', async () => {
     const user = userEvent.setup()
-    seedStore(useAuthStore, { user: { id: 1 } })
-    seedStore(useVacayStore, { stats: [buildStat({ user_id: 1 })] })
+    seedStore(useAuthStore, { user: { id: '1' } })
+    seedStore(useVacayStore, { stats: [buildStat({ user_id: '1' })] })
     render(<VacayStats />)
     await user.click(screen.getByText('25'))
     const input = screen.getByRole('spinbutton')
     await user.clear(input)
     await user.type(input, '30')
     await user.keyboard('{Enter}')
-    expect(mockUpdateVacationDays).toHaveBeenCalledWith(2025, 30, 1)
+    expect(mockUpdateVacationDays).toHaveBeenCalledWith(2025, 30, '1')
   })
 
   it('FE-COMP-VACAYSTATS-010: Pressing Escape cancels edit without saving', async () => {
     const user = userEvent.setup()
-    seedStore(useAuthStore, { user: { id: 1 } })
-    seedStore(useVacayStore, { stats: [buildStat({ user_id: 1 })] })
+    seedStore(useAuthStore, { user: { id: '1' } })
+    seedStore(useVacayStore, { stats: [buildStat({ user_id: '1' })] })
     render(<VacayStats />)
     await user.click(screen.getByText('25'))
     const input = screen.getByRole('spinbutton')
@@ -139,9 +139,9 @@ describe('VacayStats', () => {
   it('FE-COMP-VACAYSTATS-012: Non-owner can edit when isFused is true', async () => {
     const user = userEvent.setup()
     // current user is id:2, stat belongs to id:1 — but isFused=true grants canEdit
-    seedStore(useAuthStore, { user: { id: 2 } })
+    seedStore(useAuthStore, { user: { id: '2' } })
     seedStore(useVacayStore, {
-      stats: [buildStat({ user_id: 1 })],
+      stats: [buildStat({ user_id: '1' })],
       isFused: true,
     })
     render(<VacayStats />)

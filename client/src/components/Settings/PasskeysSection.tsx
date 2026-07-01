@@ -41,10 +41,10 @@ export default function PasskeysSection({ demoMode }: { demoMode?: boolean }): R
   const [addPwd, setAddPwd] = useState('')
   const [addName, setAddName] = useState('')
 
-  const [renamingId, setRenamingId] = useState<number | null>(null)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameVal, setRenameVal] = useState('')
 
-  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deletePwd, setDeletePwd] = useState('')
 
   const refresh = () => {
@@ -81,7 +81,7 @@ export default function PasskeysSection({ demoMode }: { demoMode?: boolean }): R
     }
   }
 
-  const handleRename = async (id: number) => {
+  const handleRename = async (id: string) => {
     const name = renameVal.trim()
     if (!name) { setRenamingId(null); return }
     try {
@@ -93,7 +93,7 @@ export default function PasskeysSection({ demoMode }: { demoMode?: boolean }): R
     }
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!deletePwd) { toast.error(t('settings.passkey.passwordRequired')); return }
     setBusy(true)
     try {

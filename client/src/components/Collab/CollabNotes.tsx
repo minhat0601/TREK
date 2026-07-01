@@ -77,7 +77,7 @@ function useCollabNotes({ tripId, currentUser }: CollabNotesProps) {
     let cancelled = false
     setLoading(true)
     collabApi.getNotes(tripId)
-      .then(data => { if (!cancelled) setNotes(data?.notes || data || []) })
+      .then(data => { if (!cancelled) setNotes(data?.notes || []) })
       .catch(() => { if (!cancelled) setNotes([]) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }

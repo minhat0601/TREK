@@ -48,7 +48,7 @@ interface StatCardProps {
   isMe: boolean
   canEdit: boolean
   selectedYear: number
-  onSave: (userId: number, year: number, days: number) => Promise<void>
+  onSave: (year: number, days: number, targetUserId?: string | number) => Promise<void>
   t: TranslationFn
 }
 

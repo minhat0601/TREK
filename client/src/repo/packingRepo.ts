@@ -5,17 +5,18 @@ import { onlineThenCache } from './withOfflineFallback'
 import type { PackingItem } from '../types'
 
 export const packingRepo = {
-  async list(tripId: number | string): Promise<{ items: PackingItem[] }> {
+  async list(tripId: number | string): Promise<{ items: PackingItem[]; count: number }> {
     return onlineThenCache(
       async () => {
         const result = await packingApi.list(tripId)
         upsertPackingItems(result.items)
         return result
       },
-      async () => ({
-        items: await offlineDb.packingItems
-          .where('trip_id').equals(Number(tripId)).toArray(),
-      }),
+      async () => {
+        const items = await offlineDb.packingItems
+          .where('trip_id').equals(Number(tripId)).toArray()
+        return { items, count: items.length }
+      },
     )
   },
 

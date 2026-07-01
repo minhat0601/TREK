@@ -1,7 +1,7 @@
 /** Shared types for the admin page + its data hook. No React, no side effects. */
 
 export interface AdminUser {
-  id: number
+  id: string
   username: string
   email: string
   role: 'admin' | 'user'

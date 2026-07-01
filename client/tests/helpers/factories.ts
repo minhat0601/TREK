@@ -42,23 +42,23 @@ export interface InAppNotification {
 
 // ── Builders ──────────────────────────────────────────────────────────────────
 
-export function buildUser(overrides: Partial<User> = {}): User {
-  const id = next();
+export function buildUser(overrides: Omit<Partial<User>, 'id'> & { id?: string | number } = {}): User {
+  const generatedId = next();
   return {
-    id,
-    username: `user${id}`,
-    email: `user${id}@example.com`,
+    id: overrides.id !== undefined ? String(overrides.id) : String(generatedId),
+    username: `user${generatedId}`,
+    email: `user${generatedId}@example.com`,
     role: 'user',
     avatar_url: null,
     maps_api_key: null,
     created_at: '2025-01-01T00:00:00.000Z',
     mfa_enabled: false,
     must_change_password: false,
-    ...overrides,
+    ...(overrides as any),
   };
 }
 
-export function buildAdmin(overrides: Partial<User> = {}): User {
+export function buildAdmin(overrides: Omit<Partial<User>, 'id'> & { id?: string | number } = {}): User {
   return buildUser({ role: 'admin', ...overrides });
 }
 

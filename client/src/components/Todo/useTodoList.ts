@@ -47,7 +47,7 @@ export function useTodoList(tripId: number, items: TodoItem[], addItemSignal: nu
   const [addingCategory, setAddingCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [members, setMembers] = useState<Member[]>([])
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string | number | null>(null)
 
   useEffect(() => {
     apiClient.get(`/trips/${tripId}/members`).then(r => {

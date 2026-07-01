@@ -94,7 +94,7 @@ export function useBudgetPanel(tripId: number, tripMembers: TripMember[]) {
   // Load settlement data whenever budget items change
   useEffect(() => {
     if (!hasMultipleMembers) return
-    budgetApi.settlement(tripId).then(setSettlement).catch(() => {})
+    budgetApi.settlement(tripId).then((d: any) => setSettlement(d)).catch(() => {})
   }, [tripId, budgetItems, hasMultipleMembers])
 
   const setCurrency = (cur: string) => {

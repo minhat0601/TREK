@@ -54,8 +54,8 @@ describe('VacayCalendar', () => {
       companyHolidays: [],
       holidays: {},
       plan: basePlan,
-      users: [{ id: 1, username: 'Alice', color: '#ec4899' }],
-      selectedUserId: 1,
+      users: [{ id: '1', username: 'Alice', color: '#ec4899' }],
+      selectedUserId: '1',
     })
 
     render(<VacayCalendar />)
@@ -254,8 +254,8 @@ describe('VacayCalendar', () => {
       companyHolidays: [],
       holidays: {},
       plan: basePlan,
-      users: [{ id: 1, color: '#ec4899', username: 'Alice' }],
-      selectedUserId: 1,
+      users: [{ id: '1', color: '#ec4899', username: 'Alice' }],
+      selectedUserId: '1',
     })
 
     render(<VacayCalendar />)

@@ -278,7 +278,7 @@ function DetailPane({ item, tripId, categories, members, onClose }: {
   const [dueDate, setDueDate] = useState(item.due_date || '')
   const [category, setCategory] = useState(item.category || '')
   const [addingCategory, setAddingCategoryInline] = useState(false)
-  const [assignedUserId, setAssignedUserId] = useState<number | null>(item.assigned_user_id)
+  const [assignedUserId, setAssignedUserId] = useState<string | number | null>(item.assigned_user_id)
   const [priority, setPriority] = useState(item.priority || 0)
   const [saving, setSaving] = useState(false)
 

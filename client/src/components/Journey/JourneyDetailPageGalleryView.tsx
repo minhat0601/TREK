@@ -14,7 +14,7 @@ export function GalleryView({ entries, gallery, journeyId, userId, trips, onPhot
   entries: JourneyEntry[]
   gallery: GalleryPhoto[]
   journeyId: number
-  userId: number
+  userId: any
   trips: JourneyTrip[]
   onPhotoClick: (photos: GalleryPhoto[], index: number) => void
   onRefresh: () => void

@@ -14,7 +14,7 @@ import VacayPersons from './VacayPersons'
 function withAvailableUsers() {
   server.use(
     http.get('/api/addons/vacay/available-users', () =>
-      HttpResponse.json({ users: [{ id: 2, username: 'Bob', email: 'bob@example.com' }] })
+      HttpResponse.json({ users: [{ id: '2', username: 'Bob', email: 'bob@example.com' }] })
     )
   )
 }
@@ -33,13 +33,13 @@ function seedVacay(overrides: Record<string, unknown> = {}) {
   seedStore(useVacayStore, {
     users: [],
     pendingInvites: [],
-    selectedUserId: 1,
+    selectedUserId: '1',
     isFused: false,
     ...overrides,
   })
 }
 
-function seedCurrentUser(id = 99) {
+function seedCurrentUser(id = '99') {
   seedStore(useAuthStore, { user: { id, username: `user${id}` } })
 }
 
@@ -51,8 +51,8 @@ beforeEach(() => {
 
 describe('VacayPersons', () => {
   it('FE-COMP-VACAYPERSONS-001: Renders list of users', () => {
-    seedVacay({ users: [{ id: 1, username: 'Alice', color: '#6366f1' }] })
-    seedCurrentUser(99) // different id so no "(you)" label
+    seedVacay({ users: [{ id: '1', username: 'Alice', color: '#6366f1' }] })
+    seedCurrentUser('99') // different id so no "(you)" label
 
     render(<VacayPersons />)
 
@@ -61,10 +61,10 @@ describe('VacayPersons', () => {
 
   it('FE-COMP-VACAYPERSONS-002: Current user shows "(you)" label', () => {
     seedVacay({
-      users: [{ id: 1, username: 'Alice', color: '#6366f1' }],
-      selectedUserId: 1,
+      users: [{ id: '1', username: 'Alice', color: '#6366f1' }],
+      selectedUserId: '1',
     })
-    seedCurrentUser(1) // Alice is the current user
+    seedCurrentUser('1') // Alice is the current user
 
     render(<VacayPersons />)
 
@@ -73,9 +73,9 @@ describe('VacayPersons', () => {
 
   it('FE-COMP-VACAYPERSONS-003: Pending invite rendered with "(pending)" text', () => {
     seedVacay({
-      pendingInvites: [{ id: 10, user_id: 2, username: 'Bob' }],
+      pendingInvites: [{ id: 10, user_id: '2', username: 'Bob' }],
     })
-    seedCurrentUser(1)
+    seedCurrentUser('1')
 
     render(<VacayPersons />)
 
@@ -152,7 +152,7 @@ describe('VacayPersons', () => {
     // Send the invite
     await user.click(screen.getByRole('button', { name: /send invite/i }))
 
-    expect(inviteMock).toHaveBeenCalledWith(2)
+    expect(inviteMock).toHaveBeenCalledWith('2')
   })
 
   it('FE-COMP-VACAYPERSONS-007: Invite modal closes on cancel', async () => {
@@ -178,8 +178,8 @@ describe('VacayPersons', () => {
   it('FE-COMP-VACAYPERSONS-008: Color picker opens on color dot click', async () => {
     const user = userEvent.setup()
 
-    seedVacay({ users: [{ id: 1, username: 'Alice', color: '#6366f1' }] })
-    seedCurrentUser(99)
+    seedVacay({ users: [{ id: '1', username: 'Alice', color: '#6366f1' }] })
+    seedCurrentUser('99')
 
     render(<VacayPersons />)
 
@@ -195,10 +195,10 @@ describe('VacayPersons', () => {
     const user = userEvent.setup()
 
     seedVacay({
-      users: [{ id: 1, username: 'Alice', color: '#6366f1' }],
+      users: [{ id: '1', username: 'Alice', color: '#6366f1' }],
       updateColor: updateColorMock,
     })
-    seedCurrentUser(99)
+    seedCurrentUser('99')
 
     render(<VacayPersons />)
 
@@ -221,7 +221,7 @@ describe('VacayPersons', () => {
     // Click the first swatch – PRESET_COLORS[0] is '#6366f1'
     await user.click(colorSwatches[0])
 
-    expect(updateColorMock).toHaveBeenCalledWith('#6366f1', 1)
+    expect(updateColorMock).toHaveBeenCalledWith('#6366f1', '1')
   })
 
   it('FE-COMP-VACAYPERSONS-010: isFused enables row click to select user', async () => {
@@ -230,21 +230,21 @@ describe('VacayPersons', () => {
 
     seedVacay({
       users: [
-        { id: 1, username: 'Alice', color: '#6366f1' },
-        { id: 2, username: 'Bob', color: '#ec4899' },
+        { id: '1', username: 'Alice', color: '#6366f1' },
+        { id: '2', username: 'Bob', color: '#ec4899' },
       ],
       isFused: true,
-      selectedUserId: 1, // non-null: prevents useEffect from calling the mock
+      selectedUserId: '1', // non-null: prevents useEffect from calling the mock
       setSelectedUserId: setSelectedUserIdMock,
     })
-    seedCurrentUser(99) // distinct id to avoid the "(you)" label
+    seedCurrentUser('99') // distinct id to avoid the "(you)" label
 
     render(<VacayPersons />)
 
     // Clicking Bob's name text bubbles up to the row div's onClick
     await user.click(screen.getByText('Bob'))
 
-    expect(setSelectedUserIdMock).toHaveBeenCalledWith(2)
+    expect(setSelectedUserIdMock).toHaveBeenCalledWith('2')
   })
 
   it('FE-COMP-VACAYPERSONS-011: isFused false disables row selection', async () => {
@@ -252,12 +252,12 @@ describe('VacayPersons', () => {
     const user = userEvent.setup()
 
     seedVacay({
-      users: [{ id: 2, username: 'Bob', color: '#ec4899' }],
+      users: [{ id: '2', username: 'Bob', color: '#ec4899' }],
       isFused: false,
-      selectedUserId: 1, // non-null: prevents useEffect from calling the mock
+      selectedUserId: '1', // non-null: prevents useEffect from calling the mock
       setSelectedUserId: setSelectedUserIdMock,
     })
-    seedCurrentUser(99)
+    seedCurrentUser('99')
 
     render(<VacayPersons />)
 

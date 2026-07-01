@@ -50,7 +50,7 @@ const buildFile = (overrides: Partial<TripFile> = {}): TripFile => ({
   deleted_at: null,
   place_id: null,
   reservation_id: null,
-  uploaded_by: 1,
+  uploaded_by: '1',
   uploaded_by_name: 'Alice',
   ...overrides,
 });

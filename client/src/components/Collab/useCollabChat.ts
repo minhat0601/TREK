@@ -157,7 +157,7 @@ export function useCollabChat(tripId: any, currentUser: any) {
   const handleReact = useCallback(async (msgId, emoji) => {
     setReactMenu(null)
     try {
-      const data = await collabApi.reactMessage(tripId, msgId, emoji)
+      const data: any = await collabApi.reactMessage(tripId, msgId, emoji)
       setMessages(prev => prev.map(m => m.id === msgId ? { ...m, reactions: data.reactions } : m))
     } catch { toast.error(t('common.error')) }
   }, [tripId, toast, t])

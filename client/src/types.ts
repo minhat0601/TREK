@@ -50,7 +50,7 @@ export type {
 }
 
 export interface User {
-  id: number
+  id: string
   username: string
   email: string
   role: 'admin' | 'user'
@@ -72,7 +72,7 @@ export interface TodoItem {
   sort_order: number
   due_date: string | null
   description: string | null
-  assigned_user_id: number | null
+  assigned_user_id: string | null
   priority: number
 }
 
@@ -82,7 +82,7 @@ export interface TripFile {
   place_id?: number | null
   reservation_id?: number | null
   note_id?: number | null
-  uploaded_by?: number | null
+  uploaded_by?: string | null
   uploaded_by_name?: string | null
   uploaded_by_avatar?: string | null
   filename: string
@@ -269,14 +269,14 @@ export interface VacayPlan {
 }
 
 export interface VacayUser {
-  id: number
+  id: string
   username: string
   color: string | null
 }
 
 export interface VacayEntry {
   date: string
-  user_id: number
+  user_id: string
   plan_id?: number
   person_color?: string
   person_name?: string
@@ -285,7 +285,7 @@ export interface VacayEntry {
 // Vacay per-user stats row as returned by getStats
 // (server/src/services/vacayService.ts -> getStats).
 export interface VacayStat {
-  user_id: number
+  user_id: string
   person_name: string
   person_color: string
   year: number

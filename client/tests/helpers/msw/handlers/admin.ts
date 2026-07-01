@@ -16,7 +16,7 @@ export const adminHandlers = [
 
   http.put('/api/admin/users/:id', async ({ params, request }) => {
     const body = await request.json() as Record<string, unknown>;
-    const user = buildUser({ id: Number(params.id), ...body });
+    const user = buildUser({ id: String(params.id), ...body });
     return HttpResponse.json({ user });
   }),
 

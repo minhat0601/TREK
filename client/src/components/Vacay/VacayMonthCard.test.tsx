@@ -95,7 +95,7 @@ describe('VacayMonthCard', () => {
   it('FE-COMP-VACAYMONTHCARD-008: Single vacation entry renders colored overlay', () => {
     const props = {
       ...baseProps,
-      entryMap: { '2025-01-15': [{ date: '2025-01-15', user_id: 1, person_color: '#6366f1' }] },
+      entryMap: { '2025-01-15': [{ date: '2025-01-15', user_id: '1', person_color: '#6366f1' }] },
     }
     render(<VacayMonthCard {...props} />)
     const daySpan = screen.getByText('15')
@@ -111,7 +111,7 @@ describe('VacayMonthCard', () => {
   it('FE-COMP-VACAYMONTHCARD-009: Day number font-weight is bold when entries exist', () => {
     const props = {
       ...baseProps,
-      entryMap: { '2025-01-20': [{ date: '2025-01-15', user_id: 1, person_color: '#6366f1' }] },
+      entryMap: { '2025-01-20': [{ date: '2025-01-15', user_id: '1', person_color: '#6366f1' }] },
     }
     render(<VacayMonthCard {...props} />)
     const daySpan = screen.getByText('20')
@@ -131,7 +131,7 @@ describe('VacayMonthCard', () => {
     const props = {
       ...baseProps,
       entryMap: {
-        '2025-01-15': [{ date: '2025-01-15', user_id: 1, person_color: '#6366f1' }, { date: '2025-01-15', user_id: 1, person_color: '#f43f5e' }],
+        '2025-01-15': [{ date: '2025-01-15', user_id: '1', person_color: '#6366f1' }, { date: '2025-01-15', user_id: '1', person_color: '#f43f5e' }],
       },
     }
     render(<VacayMonthCard {...props} />)
@@ -149,10 +149,10 @@ describe('VacayMonthCard', () => {
       ...baseProps,
       entryMap: {
         '2025-01-15': [
-          { date: '2025-01-15', user_id: 1, person_color: '#6366f1' },
-          { date: '2025-01-15', user_id: 1, person_color: '#f43f5e' },
-          { date: '2025-01-15', user_id: 1, person_color: '#22c55e' },
-          { date: '2025-01-15', user_id: 1, person_color: '#f59e0b' },
+          { date: '2025-01-15', user_id: '1', person_color: '#6366f1' },
+          { date: '2025-01-15', user_id: '1', person_color: '#f43f5e' },
+          { date: '2025-01-15', user_id: '1', person_color: '#22c55e' },
+          { date: '2025-01-15', user_id: '1', person_color: '#f59e0b' },
         ],
       },
     }

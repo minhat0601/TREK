@@ -204,8 +204,8 @@ describe('TodoListPanel', () => {
   it('FE-COMP-TODO-017: My Tasks filter shows only items assigned to current user', async () => {
     // Use default current_user_id: 1 from beforeEach; assign one item to user 1
     const items = [
-      buildTodoItem({ name: 'Mine', assigned_user_id: 1, checked: 0 }),
-      buildTodoItem({ name: 'Others', assigned_user_id: 9, checked: 0 }),
+      buildTodoItem({ name: 'Mine', assigned_user_id: '1', checked: 0 }),
+      buildTodoItem({ name: 'Others', assigned_user_id: '9', checked: 0 }),
     ];
     render(<TodoListPanel tripId={1} items={items} />);
     // Wait for members API to resolve and set currentUserId=1 (My Tasks count badge shows 1)

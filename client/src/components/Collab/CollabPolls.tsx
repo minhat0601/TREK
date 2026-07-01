@@ -393,7 +393,7 @@ export default function CollabPolls({ tripId, currentUser }: CollabPollsProps) {
 
   const handleVote = useCallback(async (pollId, optionIndex) => {
     try {
-      const result = await collabApi.votePoll(tripId, pollId, optionIndex)
+      const result: any = await collabApi.votePoll(tripId, pollId, optionIndex)
       const updated = result.poll || result
       setPolls(prev => prev.map(p => p.id === updated.id ? updated : p))
     } catch {

@@ -35,9 +35,9 @@ export function useCanDo() {
     if (!level) return true // not configured = allow
 
     // Support both Trip (owner_id) and DashboardTrip/server response (user_id)
-    const tripOwnerId = (trip?.user_id as number | undefined) ?? (trip?.owner_id as number | undefined) ?? null
+    const tripOwnerId = (trip?.user_id as string | number | undefined) ?? (trip?.owner_id as string | number | undefined) ?? null
     const isOwnerFlag = trip?.is_owner === true || trip?.is_owner === 1
-    const isOwner = isOwnerFlag || (tripOwnerId !== null && tripOwnerId === user.id)
+    const isOwner = isOwnerFlag || (tripOwnerId !== null && String(tripOwnerId) === String(user.id))
     const isMember = !isOwner && trip != null
 
     switch (level) {

@@ -53,21 +53,21 @@ interface VacayHolidayRaw {
 interface VacayApi {
   getPlan: () => Promise<VacayPlanResponse>
   updatePlan: (data: Partial<VacayPlan>) => Promise<{ plan: VacayPlan }>
-  updateColor: (color: string, targetUserId?: number) => Promise<unknown>
-  invite: (userId: number) => Promise<unknown>
+  updateColor: (color: string, targetUserId?: string | number) => Promise<unknown>
+  invite: (userId: string | number) => Promise<unknown>
   acceptInvite: (planId: number) => Promise<unknown>
   declineInvite: (planId: number) => Promise<unknown>
-  cancelInvite: (userId: number) => Promise<unknown>
+  cancelInvite: (userId: string | number) => Promise<unknown>
   dissolve: () => Promise<unknown>
   availableUsers: () => Promise<{ users: VacayUser[] }>
   getYears: () => Promise<VacayYearsResponse>
   addYear: (year: number) => Promise<VacayYearsResponse>
   removeYear: (year: number) => Promise<VacayYearsResponse>
   getEntries: (year: number) => Promise<VacayEntriesResponse>
-  toggleEntry: (date: string, targetUserId?: number) => Promise<unknown>
+  toggleEntry: (date: string, targetUserId?: string | number) => Promise<unknown>
   toggleCompanyHoliday: (date: string) => Promise<unknown>
   getStats: (year: number) => Promise<VacayStatsResponse>
-  updateStats: (year: number, days: number, targetUserId?: number) => Promise<unknown>
+  updateStats: (year: number, days: number, targetUserId?: string | number) => Promise<unknown>
   getCountries: () => Promise<{ countries: string[] }>
   getHolidays: (year: number, country: string) => Promise<VacayHolidayRaw[]>
   addHolidayCalendar: (data: { region: string; color?: string; label?: string | null }) => Promise<{ calendar: VacayHolidayCalendar }>
@@ -112,28 +112,28 @@ interface VacayState {
   companyHolidays: { date: string; note?: string }[]
   stats: VacayStat[]
   selectedYear: number
-  selectedUserId: number | null
+  selectedUserId: string | number | null
   holidays: HolidaysMap
   loading: boolean
 
   setSelectedYear: (year: number) => void
-  setSelectedUserId: (id: number | null) => void
+  setSelectedUserId: (id: string | number | null) => void
   loadPlan: () => Promise<void>
   updatePlan: (updates: Partial<VacayPlan>) => Promise<void>
-  updateColor: (color: string, targetUserId?: number) => Promise<void>
-  invite: (userId: number) => Promise<void>
+  updateColor: (color: string, targetUserId?: string | number) => Promise<void>
+  invite: (userId: string | number) => Promise<void>
   acceptInvite: (planId: number) => Promise<void>
   declineInvite: (planId: number) => Promise<void>
-  cancelInvite: (userId: number) => Promise<void>
+  cancelInvite: (userId: string | number) => Promise<void>
   dissolve: () => Promise<void>
   loadYears: () => Promise<void>
   addYear: (year: number) => Promise<void>
   removeYear: (year: number) => Promise<void>
   loadEntries: (year?: number) => Promise<void>
-  toggleEntry: (date: string, targetUserId?: number) => Promise<void>
+  toggleEntry: (date: string, targetUserId?: string | number) => Promise<void>
   toggleCompanyHoliday: (date: string) => Promise<void>
   loadStats: (year?: number) => Promise<void>
-  updateVacationDays: (year: number, days: number, targetUserId?: number) => Promise<void>
+  updateVacationDays: (year: number, days: number, targetUserId?: string | number) => Promise<void>
   loadHolidays: (year?: number) => Promise<void>
   addHolidayCalendar: (data: { region: string; color?: string; label?: string | null }) => Promise<void>
   updateHolidayCalendar: (id: number, data: { region?: string; color?: string; label?: string | null }) => Promise<void>
@@ -158,7 +158,7 @@ export const useVacayStore = create<VacayState>((set, get) => ({
   loading: false,
 
   setSelectedYear: (year: number) => set({ selectedYear: year }),
-  setSelectedUserId: (id: number | null) => set({ selectedUserId: id }),
+  setSelectedUserId: (id: string | number | null) => set({ selectedUserId: id as any }),
 
   loadPlan: async () => {
     const data = await api.getPlan()
@@ -243,7 +243,7 @@ export const useVacayStore = create<VacayState>((set, get) => ({
     set({ entries: data.entries, companyHolidays: data.companyHolidays })
   },
 
-  toggleEntry: async (date: string, targetUserId?: number) => {
+  toggleEntry: async (date: string, targetUserId?: string | number) => {
     await api.toggleEntry(date, targetUserId)
     await get().loadEntries()
     await get().loadStats()
@@ -261,7 +261,7 @@ export const useVacayStore = create<VacayState>((set, get) => ({
     set({ stats: data.stats })
   },
 
-  updateVacationDays: async (year: number, days: number, targetUserId?: number) => {
+  updateVacationDays: async (year: number, days: number, targetUserId?: string | number) => {
     await api.updateStats(year, days, targetUserId)
     await get().loadStats(year)
   },

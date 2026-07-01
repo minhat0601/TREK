@@ -43,7 +43,7 @@ interface Settlement {
 }
 interface SettlementData {
   balances: { user_id: number; username: string; avatar_url: string | null; balance: number }[]
-  flows: { from: { user_id: number; username: string }; to: { user_id: number; username: string }; amount: number }[]
+  flows: { from: { user_id: number; username: string }; to: { user_id: number; username: string; payment_bank_id?: string; payment_account_no?: string }; amount: number }[]
   settlements: Settlement[]
 }
 
@@ -58,7 +58,7 @@ const FIELD_H = 40 // shared height for the amount / currency / day row in the m
 
 export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps) {
   const { trip, budgetItems, deleteBudgetItem, loadBudgetItems } = useTripStore()
-  const me = useAuthStore(s => s.user?.id ?? -1)
+  const me = useAuthStore(s => s.user?.id ?? -1) as any
   const can = useCanDo()
   const canEdit = can('budget_edit', trip)
   const toast = useToast()
@@ -95,7 +95,7 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
   const fmt0 = useCallback((v: number, c = base) => formatMoney(v, c, locale, { decimals: 0 }), [base, locale])
 
   const loadSettlement = useCallback(() => {
-    budgetApi.settlement(tripId, base).then(setSettlement).catch(() => {})
+    budgetApi.settlement(tripId, base).then((d: any) => setSettlement(d)).catch(() => {})
   }, [tripId, base])
 
   useEffect(() => { loadBudgetItems(tripId); loadSettlement() }, [tripId])
@@ -502,7 +502,7 @@ export default function CostsPanel({ tripId, tripMembers = [] }: CostsPanelProps
 
   // ── shared settle-flow list ──────────────────────────────────────────────
   function SettleFlows() {
-    const flows = settlement?.flows || []
+    const flows = (settlement?.flows || []) as any[]
     if (flows.length === 0) return (
       <div style={{ textAlign: 'center', padding: '14px 8px' }}>
         <div style={{ width: 46, height: 46, borderRadius: '50%', margin: '0 auto 10px', display: 'grid', placeItems: 'center', background: 'rgba(22,163,74,0.12)', color: '#16a34a' }}><Check size={22} /></div>
@@ -887,7 +887,7 @@ export interface ExpensePrefill {
 }
 
 export function ExpenseModal({ tripId, base, people, me, editing, prefill, onClose, onSaved }: {
-  tripId: number; base: string; people: TripMember[]; me: number; editing: BudgetItem | null; prefill?: ExpensePrefill; onClose: () => void; onSaved: () => void
+  tripId: number; base: string; people: TripMember[]; me: any; editing: BudgetItem | null; prefill?: ExpensePrefill; onClose: () => void; onSaved: () => void
 }) {
   const { t, locale } = useTranslation()
   const toast = useToast()

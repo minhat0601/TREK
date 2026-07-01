@@ -48,9 +48,9 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
   const [coverPreview, setCoverPreview] = useState(null)
   const [pendingCoverFile, setPendingCoverFile] = useState(null)
   const [uploadingCover, setUploadingCover] = useState(false)
-  const [allUsers, setAllUsers] = useState<{ id: number; username: string }[]>([])
-  const [selectedMembers, setSelectedMembers] = useState<number[]>([])
-  const [existingMembers, setExistingMembers] = useState<{ id: number; username: string }[]>([])
+  const [allUsers, setAllUsers] = useState<{ id: string | number; username: string }[]>([])
+  const [selectedMembers, setSelectedMembers] = useState<(string | number)[]>([])
+  const [existingMembers, setExistingMembers] = useState<{ id: string | number; username: string }[]>([])
   const [memberSelectValue, setMemberSelectValue] = useState('')
 
   useEffect(() => {
@@ -338,7 +338,7 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
         )}
 
         {/* Reminder — only visible to owner (or when creating) */}
-        {(!isEditing || trip?.user_id === currentUser?.id || currentUser?.role === 'admin') && (
+        {(!isEditing || String(trip?.user_id) === String(currentUser?.id) || currentUser?.role === 'admin') && (
         <div className={!tripRemindersEnabled ? 'opacity-50' : ''}>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
             <Bell className="inline w-4 h-4 mr-1" />{t('trips.reminder')}
@@ -403,20 +403,20 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
                   <span key={m.id}
                     className="bg-surface-secondary text-content border border-edge"
                     onClick={async () => {
-                      if (m.id === currentUser?.id) return
+                      if (String(m.id) === String(currentUser?.id)) return
                       try {
-                        await tripsApi.removeMember(trip!.id, m.id)
-                        setExistingMembers(prev => prev.filter(x => x.id !== m.id))
+                        await tripsApi.removeMember(trip!.id, String(m.id))
+                        setExistingMembers(prev => prev.filter(x => String(x.id) !== String(m.id)))
                         toast.success(t('trips.memberRemoved', { username: m.username }))
                       } catch { toast.error(t('trips.memberRemoveError')) }
                     }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 99,
                       fontSize: 12, fontWeight: 500,
-                      cursor: m.id === currentUser?.id ? 'default' : 'pointer',
+                      cursor: String(m.id) === String(currentUser?.id) ? 'default' : 'pointer',
                     }}>
                     {m.username}
-                    {m.id !== currentUser?.id && <X size={11} className="text-content-faint" />}
+                    {String(m.id) !== String(currentUser?.id) && <X size={11} className="text-content-faint" />}
                   </span>
                 ))}
               </div>
@@ -447,7 +447,7 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
                 onChange={async value => {
                   if (!value) return
                   if (isEditing && trip?.id) {
-                    const user = allUsers.find(u => u.id === Number(value))
+                    const user = allUsers.find(u => String(u.id) === String(value))
                     if (user) {
                       try {
                         await tripsApi.addMember(trip.id, user.username)
@@ -456,12 +456,12 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
                       } catch { toast.error(t('trips.memberAddError')) }
                     }
                   } else {
-                    setSelectedMembers(prev => prev.includes(Number(value)) ? prev : [...prev, Number(value)])
+                    setSelectedMembers(prev => prev.includes(value) ? prev : [...prev, value])
                   }
                   setMemberSelectValue('')
                 }}
                 placeholder={t('dashboard.addMember')}
-                options={allUsers.filter(u => u.id !== currentUser?.id && !selectedMembers.includes(u.id) && !existingMembers.some(m => m.id === u.id)).map(u => ({ value: u.id, label: u.username }))}
+                options={allUsers.filter(u => String(u.id) !== String(currentUser?.id) && !selectedMembers.includes(u.id) && !existingMembers.some(m => String(m.id) === String(u.id))).map(u => ({ value: String(u.id), label: u.username }))}
                 searchable
                 size="sm"
               />
