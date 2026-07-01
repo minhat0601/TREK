@@ -759,7 +759,55 @@ export const placesApi = {
   },
   importGpx: async (tripId: number | string, file: File, options?: any): Promise<any> => ({ count: 0, places: [] }),
   importMapFile: async (tripId: number | string, file: File, options?: any): Promise<any> => ({ count: 0, places: [] }),
-  importGoogleList: async (tripId: number | string, url: string, enrich?: boolean): Promise<any> => ({ count: 0, places: [] }),
+
+  importGoogleList: async (tripId: number | string, url: string, _enrich?: boolean): Promise<any> => {
+    const trimmed = url.trim()
+
+    // ── Detect Google Maps placelists (multi-place lists) ──────────────────
+    // These require Google API — not supported without an API key.
+    if (/placelists|saved-places|\?listid=/i.test(trimmed)) {
+      throw new Error('Nhập danh sách Google Maps đầy đủ cần Google API key. Hãy thử paste link từng địa điểm riêng lẻ.')
+    }
+
+    // ── Resolve single-place URLs via Edge Function ─────────────────────────
+    // Handles: maps.app.goo.gl/..., goo.gl/maps/..., google.com/maps/place/...
+    let resolved: any
+    try {
+      const { data, error } = await supabase.functions.invoke('maps-resolve-url', {
+        body: { url: trimmed }
+      })
+      if (error) throw error
+      resolved = data
+    } catch {
+      // Edge Function not available — fall back to client-side parsing
+      resolved = await mapsApi.resolveUrl(trimmed)
+    }
+
+    if (!resolved?.lat || !resolved?.lng) {
+      throw new Error('Không thể lấy thông tin địa điểm từ link này. Hãy thử link địa điểm đơn lẻ từ Google Maps.')
+    }
+
+    // Insert the resolved place into the trip
+    const placeData = sanitizePlaceData({
+      name: resolved.name || 'Địa điểm',
+      address: resolved.address || '',
+      lat: resolved.lat,
+      lng: resolved.lng,
+      google_ftid: resolved.google_ftid || null,
+      osm_id: resolved.osm_id || null,
+      source: 'google',
+    })
+    const { data: place, error: insertErr } = await supabase
+      .from('places')
+      .insert([{ ...placeData, trip_id: tripId }])
+      .select()
+      .single()
+    if (insertErr) throw insertErr
+
+    return { count: 1, places: [place], listName: resolved.name || 'Google Maps' }
+  },
+
+
   importNaverList: async (tripId: number | string, url: string, enrich?: boolean): Promise<any> => ({ count: 0, places: [] }),
 }
 
