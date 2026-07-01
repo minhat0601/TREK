@@ -9,6 +9,22 @@ const corsHeaders = {
 // A beautiful default scenic travel photo on Unsplash
 const DEFAULT_TRAVEL_PHOTO = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80"
 
+async function serveDefaultPhoto() {
+  try {
+    const res = await fetch(DEFAULT_TRAVEL_PHOTO)
+    const bytes = await res.arrayBuffer()
+    return new Response(bytes, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=86400'
+      }
+    })
+  } catch (err) {
+    return new Response(`Error serving default photo: ${err.message}`, { status: 500, headers: corsHeaders })
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -17,16 +33,16 @@ serve(async (req) => {
   const url = new URL(req.url)
   const apiKey = Deno.env.get("MAPS_API_KEY") || Deno.env.get("GOOGLE_MAPS_API_KEY")
 
-  // GET Request: Stream the photo bytes or redirect to default fallback
+  // GET Request: Stream the photo bytes
   if (req.method === 'GET') {
     const placeId = url.searchParams.get("placeId")
     if (!placeId) {
-      return Response.redirect(DEFAULT_TRAVEL_PHOTO, 302)
+      return serveDefaultPhoto()
     }
 
-    // If no Google Maps API Key, redirect immediately to default travel photo
+    // If no Google Maps API Key, serve default photo
     if (!apiKey) {
-      return Response.redirect(DEFAULT_TRAVEL_PHOTO, 302)
+      return serveDefaultPhoto()
     }
 
     try {
@@ -46,7 +62,7 @@ serve(async (req) => {
       const photoName = details.photos?.[0]?.name
       
       if (!photoName) {
-        return Response.redirect(DEFAULT_TRAVEL_PHOTO, 302)
+        return serveDefaultPhoto()
       }
 
       // 2. Fetch photo media bytes
@@ -64,7 +80,7 @@ serve(async (req) => {
         }
       })
     } catch {
-      return Response.redirect(DEFAULT_TRAVEL_PHOTO, 302)
+      return serveDefaultPhoto()
     }
   }
 
