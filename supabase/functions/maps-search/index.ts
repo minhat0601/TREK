@@ -11,18 +11,47 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const apiKey = Deno.env.get("MAPS_API_KEY") || Deno.env.get("GOOGLE_MAPS_API_KEY")
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: "Google Maps API Key not configured" }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-
   try {
     const { query, lang } = await req.json()
     if (!query) {
       return new Response(JSON.stringify({ places: [] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const apiKey = Deno.env.get("MAPS_API_KEY") || Deno.env.get("GOOGLE_MAPS_API_KEY")
+    
+    // Fallback to OpenStreetMap Nominatim if no Google Maps API Key is configured
+    if (!apiKey) {
+      const params = new URLSearchParams({
+        q: query,
+        format: 'json',
+        addressdetails: '1',
+        limit: '10',
+        'accept-language': lang || 'vi',
+      })
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+        headers: { 'User-Agent': 'TREK-App/1.0' }
+      })
+      if (!response.ok) {
+        throw new Error('OSM Nominatim API error')
+      }
+      const data = await response.json()
+      const places = data.map((item: any) => ({
+        google_place_id: null,
+        google_ftid: null,
+        osm_id: `${item.osm_type}:${item.osm_id}`,
+        name: item.name || item.display_name?.split(',')[0] || '',
+        address: item.display_name || '',
+        lat: parseFloat(item.lat) || null,
+        lng: parseFloat(item.lon) || null,
+        rating: null,
+        website: null,
+        phone: null,
+        types: [],
+        source: 'openstreetmap',
+      }))
+      return new Response(JSON.stringify({ places }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }

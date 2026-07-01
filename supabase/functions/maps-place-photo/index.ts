@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 }
 
+// A beautiful default scenic travel photo on Unsplash
+const DEFAULT_TRAVEL_PHOTO = "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80"
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -14,18 +17,16 @@ serve(async (req) => {
   const url = new URL(req.url)
   const apiKey = Deno.env.get("MAPS_API_KEY") || Deno.env.get("GOOGLE_MAPS_API_KEY")
 
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: "Google Maps API Key (MAPS_API_KEY) is not configured in Supabase env." }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-
-  // GET Request: Stream the photo bytes directly to the browser
+  // GET Request: Stream the photo bytes or redirect to default fallback
   if (req.method === 'GET') {
     const placeId = url.searchParams.get("placeId")
     if (!placeId) {
-      return new Response("Missing placeId query parameter", { status: 400, headers: corsHeaders })
+      return Response.redirect(DEFAULT_TRAVEL_PHOTO, 302)
+    }
+
+    // If no Google Maps API Key, redirect immediately to default travel photo
+    if (!apiKey) {
+      return Response.redirect(DEFAULT_TRAVEL_PHOTO, 302)
     }
 
     try {
@@ -45,7 +46,7 @@ serve(async (req) => {
       const photoName = details.photos?.[0]?.name
       
       if (!photoName) {
-        return new Response("No photos available for this place", { status: 404, headers: corsHeaders })
+        return Response.redirect(DEFAULT_TRAVEL_PHOTO, 302)
       }
 
       // 2. Fetch photo media bytes
@@ -62,8 +63,8 @@ serve(async (req) => {
           'Cache-Control': 'public, max-age=86400'
         }
       })
-    } catch (err) {
-      return new Response(`Error loading photo: ${err.message}`, { status: 500, headers: corsHeaders })
+    } catch {
+      return Response.redirect(DEFAULT_TRAVEL_PHOTO, 302)
     }
   }
 

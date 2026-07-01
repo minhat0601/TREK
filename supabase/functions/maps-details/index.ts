@@ -11,19 +11,66 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const apiKey = Deno.env.get("MAPS_API_KEY") || Deno.env.get("GOOGLE_MAPS_API_KEY")
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: "Google Maps API Key not configured" }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
-  }
-
   try {
     const { placeId, lang } = await req.json()
     if (!placeId) {
       return new Response(JSON.stringify({ error: "Missing placeId" }), {
         status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    const apiKey = Deno.env.get("MAPS_API_KEY") || Deno.env.get("GOOGLE_MAPS_API_KEY")
+    const isOsmId = placeId.includes(':') // e.g. node:12345, way:12345
+
+    // Fallback to OSM Nominatim if it's an OSM ID or Google Maps key is not configured
+    if (isOsmId || !apiKey) {
+      const parts = placeId.split(':')
+      const osmType = parts[0] || 'node'
+      const osmId = parts[1] || placeId
+      const typePrefix = osmType.charAt(0).toUpperCase() // N, W, R
+
+      const params = new URLSearchParams({
+        osm_ids: `${typePrefix}${osmId}`,
+        format: 'json',
+        'accept-language': lang || 'vi',
+      })
+
+      const response = await fetch(`https://nominatim.openstreetmap.org/lookup?${params}`, {
+        headers: { 'User-Agent': 'TREK-App/1.0' }
+      })
+      if (!response.ok) {
+        throw new Error('OSM Nominatim Details API error')
+      }
+
+      const data = await response.json()
+      const item = data[0]
+      if (!item) {
+        throw new Error('Place not found')
+      }
+
+      const displayParts = (item.display_name || '').split(',').map((s: string) => s.trim())
+      const place = {
+        google_place_id: null,
+        osm_id: placeId,
+        name: item.name || displayParts[0] || '',
+        address: item.display_name || '',
+        lat: parseFloat(item.lat) || null,
+        lng: parseFloat(item.lon) || null,
+        rating: null,
+        rating_count: null,
+        website: null,
+        phone: null,
+        opening_hours: null,
+        open_now: null,
+        google_maps_url: null,
+        summary: null,
+        reviews: [],
+        source: 'openstreetmap',
+        cached_at: Date.now()
+      }
+
+      return new Response(JSON.stringify({ place }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
