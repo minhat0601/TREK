@@ -91,6 +91,7 @@ function scheduleReconnect(): void {
 }
 
 async function connectInternal(_isReconnect = false): Promise<void> {
+  return;
   if (connecting) return
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
     return
