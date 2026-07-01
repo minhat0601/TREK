@@ -1711,54 +1711,134 @@ export const weatherApi = {
   },
 }
 
+// -----------------------------------------------------------------------------
+// Maps API — direct Nominatim (OSM) + Photon calls, no Edge Function needed
+// Nominatim: https://nominatim.openstreetmap.org (free, CORS-enabled)
+// Photon:    https://photon.komoot.io            (free, CORS-enabled, better autocomplete)
+// -----------------------------------------------------------------------------
+const NOMINATIM = 'https://nominatim.openstreetmap.org'
+const PHOTON    = 'https://photon.komoot.io'
+
+function osmPlace(item: any) {
+  return {
+    google_place_id: null,
+    osm_id: `${item.osm_type}:${item.osm_id}`,
+    name: item.name || (item.display_name || '').split(',')[0] || '',
+    address: item.display_name || '',
+    lat: parseFloat(item.lat) || null,
+    lng: parseFloat(item.lon) || null,
+    rating: null,
+    website: null,
+    phone: null,
+    types: [item.type || item.class].filter(Boolean),
+    source: 'openstreetmap',
+  }
+}
+
 export const mapsApi = {
   search: async (query: string, lang?: string, signal?: AbortSignal) => {
-    const { data, error } = await supabase.functions.invoke('maps-search', {
-      body: { query, lang },
-      headers: signal ? { signal: signal as any } : undefined
+    if (!query) return { places: [] }
+    const params = new URLSearchParams({
+      q: query,
+      format: 'json',
+      addressdetails: '1',
+      limit: '10',
+      'accept-language': lang || 'vi',
     })
-    if (error) throw error
-    return data
+    try {
+      const res = await fetch(`${NOMINATIM}/search?${params}`, { signal })
+      if (!res.ok) return { places: [] }
+      const data = await res.json()
+      return { places: (data || []).map(osmPlace) }
+    } catch {
+      return { places: [] }
+    }
   },
+
   autocomplete: async (input: string, lang?: string, locationBias?: any, signal?: AbortSignal) => {
-    const { data, error } = await supabase.functions.invoke('maps-autocomplete', {
-      body: { input, lang, locationBias },
-      headers: signal ? { signal: signal as any } : undefined
-    })
-    if (error) throw error
-    return data
+    if (!input) return { suggestions: [], source: 'photon' }
+    // Photon gives much better autocomplete UX than Nominatim
+    const params = new URLSearchParams({ q: input, limit: '5', lang: (lang || 'vi').split('-')[0] })
+    if (locationBias) {
+      const lat = (locationBias.low.lat + locationBias.high.lat) / 2
+      const lon = (locationBias.low.lng + locationBias.high.lng) / 2
+      params.set('lat', String(lat))
+      params.set('lon', String(lon))
+    }
+    try {
+      const res = await fetch(`${PHOTON}/api/?${params}`, { signal })
+      if (!res.ok) throw new Error('photon error')
+      const data = await res.json()
+      const suggestions = (data.features || []).map((f: any) => ({
+        placeId: `${f.properties?.osm_type}:${f.properties?.osm_id}`,
+        mainText: f.properties?.name || f.properties?.street || f.properties?.city || '',
+        secondaryText: [f.properties?.city, f.properties?.state, f.properties?.country].filter(Boolean).join(', '),
+      }))
+      return { suggestions, source: 'photon' }
+    } catch {
+      // Fallback: Nominatim
+      const p2 = new URLSearchParams({ q: input, format: 'json', limit: '5', 'accept-language': lang || 'vi' })
+      try {
+        const res = await fetch(`${NOMINATIM}/search?${p2}`, { signal })
+        if (!res.ok) return { suggestions: [], source: 'nominatim' }
+        const data = await res.json()
+        const suggestions = (data || []).map((item: any) => {
+          const parts = (item.display_name || '').split(',').map((s: string) => s.trim())
+          return { placeId: `${item.osm_type}:${item.osm_id}`, mainText: item.name || parts[0] || '', secondaryText: parts.slice(1).join(', ') }
+        })
+        return { suggestions, source: 'nominatim' }
+      } catch {
+        return { suggestions: [], source: 'nominatim' }
+      }
+    }
   },
-  details: async (placeId: string, lang?: string, signal?: AbortSignal) => {
-    const { data, error } = await supabase.functions.invoke('maps-details', {
-      body: { placeId, lang },
-      headers: signal ? { signal: signal as any } : undefined
-    })
-    if (error) throw error
-    return data
+
+  details: async (placeId: string, lang?: string, _signal?: AbortSignal) => {
+    const parts = placeId.split(':')
+    const osmType = parts[0] || 'node'
+    const osmId = parts[1] || placeId
+    const typePrefix = osmType.charAt(0).toUpperCase()
+    const params = new URLSearchParams({ osm_ids: `${typePrefix}${osmId}`, format: 'json', 'accept-language': lang || 'vi' })
+    const res = await fetch(`${NOMINATIM}/lookup?${params}`)
+    if (!res.ok) throw new Error('Place not found')
+    const data = await res.json()
+    const item = data[0]
+    if (!item) throw new Error('Place not found')
+    const displayParts = (item.display_name || '').split(',').map((s: string) => s.trim())
+    return {
+      place: {
+        google_place_id: null,
+        osm_id: placeId,
+        name: item.name || displayParts[0] || '',
+        address: item.display_name || '',
+        lat: parseFloat(item.lat) || null,
+        lng: parseFloat(item.lon) || null,
+        rating: null, rating_count: null, website: null, phone: null,
+        opening_hours: null, open_now: null, google_maps_url: null,
+        summary: null, reviews: [], source: 'openstreetmap', cached_at: Date.now()
+      }
+    }
   },
-  placePhoto: async (placeId: string, lat?: number, lng?: number, name?: string) => {
-    const { data, error } = await supabase.functions.invoke('maps-place-photo', {
-      body: { placeId, lat, lng, name }
-    })
-    if (error) throw error
-    return data
-  },
+
   reverse: async (lat: number, lng: number, lang?: string) => {
-    const { data, error } = await supabase.functions.invoke('maps-reverse', {
-      body: { lat, lng, lang }
-    })
-    if (error) throw error
-    return data
+    const params = new URLSearchParams({ lat: String(lat), lon: String(lng), format: 'json', addressdetails: '1', zoom: '18', 'accept-language': lang || 'vi' })
+    try {
+      const res = await fetch(`${NOMINATIM}/reverse?${params}`)
+      if (!res.ok) return { name: null, address: null }
+      const data = await res.json()
+      const addr = data.address || {}
+      const name = data.name || addr.tourism || addr.amenity || addr.shop || addr.building || addr.road || null
+      return { name, address: data.display_name || null }
+    } catch {
+      return { name: null, address: null }
+    }
   },
-  resolveUrl: async (url: string, lang?: string): Promise<any> => {
-    const { data, error } = await supabase.functions.invoke('maps-resolve-url', {
-      body: { url, lang }
-    })
-    if (error) throw error
-    return data
-  },
-  pois: async (key: string, bbox: any, signal?: AbortSignal): Promise<any> => ({ pois: [] }),
+
+  placePhoto: async (_placeId: string, _lat?: number, _lng?: number, _name?: string): Promise<any> => ({ url: null }),
+  resolveUrl: async (_url: string, _lang?: string): Promise<any> => ({ place: null }),
+  pois: async (_key: string, _bbox: any, _signal?: AbortSignal): Promise<any> => ({ pois: [] }),
 }
+
 
 export const shareApi = {
   getLink: async (tripId: number | string): Promise<any> => {
