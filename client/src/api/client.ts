@@ -1850,7 +1850,57 @@ export const mapsApi = {
   },
 
   placePhoto: async (_placeId: string, _lat?: number, _lng?: number, _name?: string): Promise<any> => ({ url: null }),
-  resolveUrl: async (_url: string, _lang?: string): Promise<any> => ({ place: null }),
+  resolveUrl: async (url: string, lang?: string): Promise<any> => {
+    try {
+      // Parse Google Maps URL directly — no API key needed
+      // Handles formats:
+      //   /maps/place/Name/@lat,lng,zoom
+      //   /maps?q=lat,lng
+      //   maps.app.goo.gl short URLs (not supported — returns null)
+      const parsed = new URL(url)
+
+      // Extract coordinates from @lat,lng,zoom part
+      const atMatch = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
+      let lat: number | null = atMatch ? parseFloat(atMatch[1]) : null
+      let lng: number | null = atMatch ? parseFloat(atMatch[2]) : null
+
+      // Fallback: ?q=lat,lng
+      if (!lat || !lng) {
+        const q = parsed.searchParams.get('q') || ''
+        const qMatch = q.match(/^(-?\d+\.?\d*),(-?\d+\.?\d*)$/)
+        if (qMatch) { lat = parseFloat(qMatch[1]); lng = parseFloat(qMatch[2]) }
+      }
+
+      // Extract place name from URL path: /maps/place/Name/@...
+      let name = ''
+      const placeMatch = parsed.pathname.match(/\/maps\/place\/([^/@]+)/)
+      if (placeMatch) {
+        name = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '))
+      }
+
+      if (!lat || !lng) return { lat: null, lng: null, name: null, address: null }
+
+      // Use Nominatim reverse geocoding to get a proper address
+      let address = ''
+      try {
+        const params = new URLSearchParams({ lat: String(lat), lon: String(lng), format: 'json', zoom: '18', 'accept-language': lang || 'vi' })
+        const res = await fetch(`${NOMINATIM}/reverse?${params}`)
+        if (res.ok) {
+          const data = await res.json()
+          address = data.display_name || ''
+          // If we couldn't extract a name from URL, use Nominatim's name
+          if (!name) {
+            const addr = data.address || {}
+            name = data.name || addr.tourism || addr.amenity || addr.shop || addr.building || addr.road || ''
+          }
+        }
+      } catch { /* address stays empty */ }
+
+      return { lat, lng, name, address, google_ftid: null }
+    } catch {
+      return { lat: null, lng: null, name: null, address: null }
+    }
+  },
   pois: async (_key: string, _bbox: any, _signal?: AbortSignal): Promise<any> => ({ pois: [] }),
 }
 
