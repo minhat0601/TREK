@@ -287,6 +287,9 @@ export const tripsApi = {
 
     // Strip day_count from payload to avoid PostgreSQL schema cache error
     const { day_count, ...insertData } = data as any
+    if (insertData.is_archived !== undefined) {
+      insertData.is_archived = !!insertData.is_archived
+    }
 
     const { data: trip, error } = await supabase
       .from('trips')
@@ -333,6 +336,9 @@ export const tripsApi = {
 
   update: async (id: number | string, data: TripUpdateRequest) => {
     const { day_count, ...updateData } = data as any
+    if (updateData.is_archived !== undefined) {
+      updateData.is_archived = !!updateData.is_archived
+    }
     const { data: trip, error } = await supabase
       .from('trips')
       .update(updateData)
@@ -1040,9 +1046,13 @@ export const collabApi = {
   createNote: async (tripId: number | string, data: CollabNoteCreateRequest) => {
     const user = (await supabase.auth.getUser()).data.user
     if (!user) throw new Error('Not authenticated')
+    const insertData = { ...data } as any
+    if (insertData.pinned !== undefined) {
+      insertData.pinned = !!insertData.pinned
+    }
     const { data: note, error } = await supabase
       .from('collab_notes')
-      .insert([{ ...data, trip_id: tripId, user_id: user.id }])
+      .insert([{ ...insertData, trip_id: tripId, user_id: user.id }])
       .select()
       .single()
     if (error) throw error
@@ -1050,9 +1060,13 @@ export const collabApi = {
   },
 
   updateNote: async (tripId: number | string, id: number, data: CollabNoteUpdateRequest) => {
+    const updateData = { ...data } as any
+    if (updateData.pinned !== undefined) {
+      updateData.pinned = !!updateData.pinned
+    }
     const { data: note, error } = await supabase
       .from('collab_notes')
-      .update(data)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single()
