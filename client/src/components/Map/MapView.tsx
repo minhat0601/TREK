@@ -590,7 +590,7 @@ export const MapView = memo(function MapView({
       className="w-full h-full bg-[#e5e7eb]"
     >
       <TileLayer
-        url={tileUrl}
+        url={tileUrl || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         maxZoom={19}
         keepBuffer={8}
