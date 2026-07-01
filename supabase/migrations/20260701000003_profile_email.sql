@@ -56,3 +56,19 @@ create policy "Admins can select all trip files"
 create policy "Admins can manage all profiles"
   on public.profiles for all
   using (public.is_admin(auth.uid()));
+
+-- 7. Kích hoạt Supabase Realtime cho các bảng cần đồng bộ tức thời
+
+-- Thêm các bảng vào publication supabase_realtime
+alter publication supabase_realtime add table public.collab_messages;
+alter publication supabase_realtime add table public.collab_notes;
+alter publication supabase_realtime add table public.collab_polls;
+alter publication supabase_realtime add table public.collab_poll_votes;
+alter publication supabase_realtime add table public.trips;
+alter publication supabase_realtime add table public.places;
+alter publication supabase_realtime add table public.todo_items;
+alter publication supabase_realtime add table public.packing_items;
+alter publication supabase_realtime add table public.budget_items;
+alter publication supabase_realtime add table public.reservations;
+alter publication supabase_realtime add table public.days;
+alter publication supabase_realtime add table public.day_assignments;
