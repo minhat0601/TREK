@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm install && cd client && npm install && npm run build",
+  "outputDirectory": "client/dist",
+  "rewrites": [
+    {
+      "source": "/((?!_vercel|favicon\\.ico|icons|sw\\.js|workbox|manifest\\.webmanifest|assets).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
