@@ -77,16 +77,15 @@ create table public.trip_members (
   unique(trip_id, user_id)
 );
 
--- Helper function to check trip membership/ownership
-create or replace function public.can_access_trip(trip_id bigint, user_uuid uuid)
+create or replace function public.can_access_trip(p_trip_id bigint, p_user_uuid uuid)
 returns boolean security definer as $$
 begin
   return exists (
     select 1 from public.trips t
-    where t.id = trip_id and t.user_id = user_uuid
+    where t.id = p_trip_id and t.user_id = p_user_uuid
   ) or exists (
     select 1 from public.trip_members tm
-    where tm.trip_id = trip_id and tm.user_id = user_uuid
+    where tm.trip_id = p_trip_id and tm.user_id = p_user_uuid
   );
 end;
 $$ language plpgsql;
