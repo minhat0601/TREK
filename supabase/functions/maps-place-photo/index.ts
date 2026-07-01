@@ -79,7 +79,7 @@ serve(async (req) => {
         })
       }
 
-      const functionUrl = `${url.origin}${url.pathname}?placeId=${encodeURIComponent(placeId)}`
+      const functionUrl = `${url.origin}/functions/v1/maps-place-photo?placeId=${encodeURIComponent(placeId)}`
       return new Response(JSON.stringify({ photoUrl: functionUrl }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
