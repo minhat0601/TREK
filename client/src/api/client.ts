@@ -500,39 +500,36 @@ export const tripsApi = {
 
   bundle: async (id: number | string): Promise<any> => {
     // Fetch all trip data in parallel for offline sync (Dexie)
-    const [tripRes, daysRes, placesRes, assignmentsRes, packingRes, todoRes, budgetRes, reservationsRes, notesRes, accommodationsRes, collabNotesRes, collabPollsRes, collabMessagesRes, filesRes] = await Promise.allSettled([
-      supabase.from('trips').select('*, trip_members(*)').eq('id', id).single(),
-      supabase.from('days').select('*, day_assignments(*), day_notes(*)').eq('trip_id', id),
+    // Keys must match TripBundle interface in tripSyncManager.ts (camelCase)
+    const [tripRes, daysRes, placesRes, packingRes, todoRes, budgetRes, reservationsRes, notesRes, accommodationsRes, membersRes, filesRes] = await Promise.allSettled([
+      supabase.from('trips').select('*').eq('id', id).single(),
+      supabase.from('days').select('*').eq('trip_id', id),
       supabase.from('places').select('*').eq('trip_id', id),
-      supabase.from('day_assignments').select('*').eq('day_id', id), // will be empty but safe
       supabase.from('packing_items').select('*').eq('trip_id', id),
       supabase.from('todo_items').select('*').eq('trip_id', id),
       supabase.from('budget_items').select('*').eq('trip_id', id),
       supabase.from('reservations').select('*').eq('trip_id', id),
       supabase.from('day_notes').select('*').eq('trip_id', id),
       supabase.from('day_accommodations').select('*').eq('trip_id', id),
-      supabase.from('collab_notes').select('*').eq('trip_id', id),
-      supabase.from('collab_polls').select('*, collab_poll_votes(*)').eq('trip_id', id),
-      supabase.from('collab_messages').select('*').eq('trip_id', id),
+      supabase.from('trip_members').select('*').eq('trip_id', id),
       supabase.from('trip_files').select('*').eq('trip_id', id).eq('is_deleted', false),
     ])
-    const get = (r: PromiseSettledResult<any>, key = 'data') =>
-      r.status === 'fulfilled' ? (r.value[key] ?? r.value.data) : null
+    const get = (r: PromiseSettledResult<any>) =>
+      r.status === 'fulfilled' ? (r.value.data ?? null) : null
+    const trip = get(tripRes)
     return {
       bundle: {
-        trip: get(tripRes),
+        trip,
         days: get(daysRes) ?? [],
         places: get(placesRes) ?? [],
-        packing_items: get(packingRes) ?? [],
-        todo_items: get(todoRes) ?? [],
-        budget_items: get(budgetRes) ?? [],
+        packingItems: get(packingRes) ?? [],   // camelCase — matches TripBundle
+        todoItems: get(todoRes) ?? [],          // camelCase — matches TripBundle
+        budgetItems: get(budgetRes) ?? [],      // camelCase — matches TripBundle
         reservations: get(reservationsRes) ?? [],
-        day_notes: get(notesRes) ?? [],
-        day_accommodations: get(accommodationsRes) ?? [],
-        collab_notes: get(collabNotesRes) ?? [],
-        collab_polls: get(collabPollsRes) ?? [],
-        collab_messages: get(collabMessagesRes) ?? [],
-        trip_files: get(filesRes) ?? [],
+        dayNotes: get(notesRes) ?? [],
+        accommodations: get(accommodationsRes) ?? [],
+        members: get(membersRes) ?? [],         // trip_members for upsertTripMembers
+        files: get(filesRes) ?? [],             // 'files' — matches TripBundle
       }
     }
   },
@@ -2009,7 +2006,7 @@ export const inAppNotificationsApi = {
   list: async (params?: { limit?: number; offset?: number; unread_only?: boolean }): Promise<any> => {
     const user = (await supabase.auth.getUser()).data.user
     if (!user) return { notifications: [], total: 0, unread_count: 0 }
-    let query = supabase.from('notifications').select('*', { count: 'exact' })
+    let query = supabase.from('notifications').select('*, sender:profiles!sender_id(username, avatar_url)', { count: 'exact' })
       .eq('recipient_id', user.id).order('created_at', { ascending: false })
     if (params?.unread_only) query = query.eq('is_read', false)
     if (params?.limit) query = query.limit(params.limit)
@@ -2017,9 +2014,15 @@ export const inAppNotificationsApi = {
     if (params?.offset) query = query.range(params.offset, params.offset + (params?.limit ?? 50) - 1)
     const { data, error, count } = await query
     if (error) throw error
-    const { data: unreadData } = await supabase.from('notifications')
-      .select('id', { count: 'exact' }).eq('recipient_id', user.id).eq('is_read', false)
-    return { notifications: data || [], total: count || 0, unread_count: unreadData?.length ?? 0 }
+    // Flatten sender profile into notification row
+    const notifications = (data || []).map((n: any) => ({
+      ...n,
+      sender_username: n.sender?.username ?? null,
+      sender_avatar: n.sender?.avatar_url ?? null,
+    }))
+    const { count: unreadCount } = await supabase.from('notifications')
+      .select('id', { count: 'exact', head: true }).eq('recipient_id', user.id).eq('is_read', false)
+    return { notifications, total: count || 0, unread_count: unreadCount ?? 0 }
   },
   unreadCount: async (): Promise<any> => {
     const user = (await supabase.auth.getUser()).data.user
