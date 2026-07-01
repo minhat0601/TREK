@@ -99,6 +99,7 @@ export default function AccountTab(): React.ReactElement {
   // MFA
   const [mfaQr, setMfaQr] = useState<string | null>(null)
   const [mfaSecret, setMfaSecret] = useState<string | null>(null)
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null)
   const [mfaSetupCode, setMfaSetupCode] = useState('')
   const [mfaDisablePwd, setMfaDisablePwd] = useState('')
   const [mfaDisableCode, setMfaDisableCode] = useState('')
@@ -304,9 +305,10 @@ export default function AccountTab(): React.ReactElement {
                     onClick={async () => {
                       setMfaLoading(true)
                       try {
-                        const data = await authApi.mfaSetup() as { qr_svg: string; secret: string }
+                        const data = await authApi.mfaSetup() as { qr_svg: string; secret: string; factor_id: string }
                         setMfaQr(data.qr_svg)
                         setMfaSecret(data.secret)
+                        setMfaFactorId(data.factor_id)
                         setMfaSetupCode('')
                       } catch (err: unknown) {
                         toast.error(getApiErrorMessage(err, t('common.error')))
@@ -344,10 +346,11 @@ export default function AccountTab(): React.ReactElement {
                         onClick={async () => {
                           setMfaLoading(true)
                           try {
-                            const resp = await authApi.mfaEnable({ code: mfaSetupCode }) as { backup_codes?: string[] }
+                            const resp = await authApi.mfaEnable({ code: mfaSetupCode, factor_id: mfaFactorId! }) as { backup_codes?: string[] }
                             toast.success(t('settings.mfa.toastEnabled'))
                             setMfaQr(null)
                             setMfaSecret(null)
+                            setMfaFactorId(null)
                             setMfaSetupCode('')
                             const codes = resp.backup_codes || null
                             if (codes?.length) {

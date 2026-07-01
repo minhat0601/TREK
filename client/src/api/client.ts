@@ -237,9 +237,36 @@ export const authApi = {
     return { user: me.user, token: '' }
   },
 
-  mfaSetup: async (): Promise<any> => ({}),
-  mfaEnable: async (...args: any[]): Promise<any> => ({}),
-  mfaDisable: async (...args: any[]): Promise<any> => ({}),
+  mfaSetup: async (): Promise<any> => {
+    // Enroll TOTP factor via Supabase Auth
+    const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp' })
+    if (error) throw error
+    return {
+      qr_svg: data.totp.qr_code,      // SVG URI for QR code display
+      secret: data.totp.secret,        // base32 manual entry secret
+      factor_id: data.id,              // needed for mfaEnable
+    }
+  },
+  mfaEnable: async (data: { code: string; factor_id: string }): Promise<any> => {
+    // Challenge then verify
+    const { data: challenge, error: ce } = await supabase.auth.mfa.challenge({ factorId: data.factor_id })
+    if (ce) throw ce
+    const { error: ve } = await supabase.auth.mfa.verify({
+      factorId: data.factor_id,
+      challengeId: challenge.id,
+      code: data.code.replace(/\s/g, ''),
+    })
+    if (ve) throw ve
+    return { success: true }
+  },
+  mfaDisable: async (_data?: any): Promise<any> => {
+    const { data } = await supabase.auth.mfa.listFactors()
+    const totp = data?.totp?.[0]
+    if (!totp) return { success: true }
+    const { error } = await supabase.auth.mfa.unenroll({ factorId: totp.id })
+    if (error) throw error
+    return { success: true }
+  },
   deleteOwnAccount: async (...args: any[]): Promise<any> => ({ success: true }),
 
   passkey: {
@@ -2214,54 +2241,338 @@ export const airtrailApi = {
 }
 
 export const journeyApi = {
-  list: async (...args: any[]): Promise<any> => ({ journeys: [] }),
-  create: async (...args: any[]): Promise<any> => ({ journey: {} }),
-  get: async (...args: any[]): Promise<any> => ({ journey: {} }),
-  update: async (...args: any[]): Promise<any> => ({ journey: {} }),
-  delete: async (...args: any[]): Promise<any> => ({ success: true }),
-  suggestions: async (...args: any[]): Promise<any> => ({ suggestions: [] }),
-  availableTrips: async (...args: any[]): Promise<any> => ({ trips: [] }),
-  addTrip: async (...args: any[]): Promise<any> => ({ success: true }),
-  removeTrip: async (...args: any[]): Promise<any> => ({ success: true }),
-  listEntries: async (...args: any[]): Promise<any> => ({ entries: [] }),
-  createEntry: async (...args: any[]): Promise<any> => ({ entry: {} }),
-  updateEntry: async (...args: any[]): Promise<any> => ({ entry: {} }),
-  deleteEntry: async (...args: any[]): Promise<any> => ({ success: true }),
-  reorderEntries: async (...args: any[]): Promise<any> => ({ success: true }),
-  uploadPhotos: async (...args: any[]): Promise<any> => ({ success: true }),
-  uploadGalleryPhotos: async (...args: any[]): Promise<any> => ({ success: true }),
+  list: async (): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return { journeys: [] }
+    const { data, error } = await supabase.from('journeys').select('*')
+      .eq('user_id', user.id).order('created_at', { ascending: false })
+    if (error) throw error
+    return { journeys: data || [] }
+  },
+
+  create: async (data: { title: string; subtitle?: string; trip_ids?: number[] }): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) throw new Error('Not authenticated')
+    const { data: journey, error } = await supabase.from('journeys')
+      .insert({ user_id: user.id, title: data.title, subtitle: data.subtitle })
+      .select().single()
+    if (error) throw error
+    // Add owner as contributor
+    await supabase.from('journey_contributors').insert({ journey_id: journey.id, user_id: user.id, role: 'owner' })
+    // Link trips if provided
+    if (data.trip_ids?.length) {
+      await supabase.from('journey_trips').insert(data.trip_ids.map(tid => ({ journey_id: journey.id, trip_id: tid })))
+    }
+    return { journey }
+  },
+
+  get: async (id: number): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) throw new Error('Not authenticated')
+    const { data: journey, error } = await supabase.from('journeys').select('*').eq('id', id).single()
+    if (error) throw error
+    const [entriesRes, tripsRes, contribRes, photosRes] = await Promise.allSettled([
+      supabase.from('journey_entries').select('*').eq('journey_id', id).order('sort_order', { ascending: true }),
+      supabase.from('journey_trips').select('*, trips(id, title, start_date, end_date, cover_image, currency)').eq('journey_id', id),
+      supabase.from('journey_contributors').select('*, profiles(username, avatar_url)').eq('journey_id', id),
+      supabase.from('journey_photos').select('*, trip_files(*)').eq('journey_id', id).order('sort_order', { ascending: true }),
+    ])
+    const get = (r: PromiseSettledResult<any>) => r.status === 'fulfilled' ? r.value.data ?? [] : []
+    const entries = get(entriesRes)
+    const trips = get(tripsRes).map((r: any) => ({ trip_id: r.trip_id, added_at: r.added_at, ...r.trips }))
+    const contributors = get(contribRes).map((r: any) => ({ ...r, username: r.profiles?.username, avatar: r.profiles?.avatar_url }))
+    const gallery = get(photosRes)
+    const stats = { entries: entries.length, photos: gallery.length, places: 0 }
+    return { journey: { ...journey, entries, trips, contributors, gallery, stats } }
+  },
+
+  update: async (id: number, data: Record<string, unknown>): Promise<any> => {
+    const { data: journey, error } = await supabase.from('journeys')
+      .update({ ...data, updated_at: new Date().toISOString() }).eq('id', id).select().single()
+    if (error) throw error
+    return { journey }
+  },
+
+  delete: async (id: number): Promise<any> => {
+    const { error } = await supabase.from('journeys').delete().eq('id', id)
+    if (error) throw error
+    return { success: true }
+  },
+
+  suggestions: async (): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return { trips: [] }
+    const { data } = await supabase.from('trips').select('id, title, start_date, end_date, cover_image, currency')
+      .eq('user_id', user.id).order('start_date', { ascending: false }).limit(10)
+    return { trips: data || [] }
+  },
+
+  availableTrips: async (): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return { trips: [] }
+    const { data } = await supabase.from('trips').select('id, title, start_date, end_date, cover_image, currency')
+      .eq('user_id', user.id).order('start_date', { ascending: false })
+    return { trips: data || [] }
+  },
+
+  addTrip: async (journeyId: number, tripId: number): Promise<any> => {
+    const { error } = await supabase.from('journey_trips')
+      .upsert({ journey_id: journeyId, trip_id: tripId }, { onConflict: 'journey_id,trip_id' })
+    if (error) throw error
+    return { success: true }
+  },
+
+  removeTrip: async (journeyId: number, tripId: number): Promise<any> => {
+    const { error } = await supabase.from('journey_trips')
+      .delete().eq('journey_id', journeyId).eq('trip_id', tripId)
+    if (error) throw error
+    return { success: true }
+  },
+
+  listEntries: async (journeyId: number): Promise<any> => {
+    const { data, error } = await supabase.from('journey_entries').select('*')
+      .eq('journey_id', journeyId).order('sort_order', { ascending: true })
+    if (error) throw error
+    return { entries: data || [] }
+  },
+
+  createEntry: async (journeyId: number, data: Record<string, unknown>): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) throw new Error('Not authenticated')
+    const { data: entry, error } = await supabase.from('journey_entries')
+      .insert({ journey_id: journeyId, author_id: user.id, ...data })
+      .select().single()
+    if (error) throw error
+    return { entry }
+  },
+
+  updateEntry: async (entryId: number, data: Record<string, unknown>): Promise<any> => {
+    const { data: entry, error } = await supabase.from('journey_entries')
+      .update({ ...data, updated_at: new Date().toISOString() }).eq('id', entryId).select().single()
+    if (error) throw error
+    return { entry }
+  },
+
+  deleteEntry: async (entryId: number): Promise<any> => {
+    const { error } = await supabase.from('journey_entries').delete().eq('id', entryId)
+    if (error) throw error
+    return { success: true }
+  },
+
+  reorderEntries: async (journeyId: number, orderedIds: number[]): Promise<any> => {
+    await Promise.all(orderedIds.map((id, idx) =>
+      supabase.from('journey_entries').update({ sort_order: idx }).eq('id', id)
+    ))
+    return { success: true }
+  },
+
+  // Photo management — bucket: journey-photos, table: journey_photos (NOT trip_files)
+  // trip_files has a NOT NULL FK trip_id → trips.id, cannot use trip_id=0
+  uploadPhotos: async (entryId: number, formData: FormData, opts?: any): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) throw new Error('Not authenticated')
+    const { data: entry } = await supabase.from('journey_entries').select('journey_id').eq('id', entryId).single()
+    if (!entry) throw new Error('Entry not found')
+    const files = formData.getAll('files') as File[]
+    const results = []
+    for (const file of files) {
+      const ext = file.name.split('.').pop()
+      const path = `${user.id}/journeys/${entry.journey_id}/entries/${entryId}/${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('journey-photos').upload(path, file)
+      if (upErr) continue
+      const { data: { publicUrl } } = supabase.storage.from('journey-photos').getPublicUrl(path)
+      // Insert directly into journey_photos (no trip_files dependency)
+      const { data: photo } = await supabase.from('journey_photos').insert({
+        journey_id: entry.journey_id,
+        entry_id: entryId,
+        storage_path: path,
+        url: publicUrl,
+        original_name: file.name,
+        mime_type: file.type,
+        file_size: file.size,
+      }).select().single()
+      if (photo) results.push(photo)
+    }
+    return { photos: results }
+  },
+
+  uploadGalleryPhotos: async (journeyId: number, formData: FormData, opts?: any): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) throw new Error('Not authenticated')
+    const files = formData.getAll('files') as File[]
+    const results = []
+    for (const file of files) {
+      const ext = file.name.split('.').pop()
+      const path = `${user.id}/journeys/${journeyId}/gallery/${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('journey-photos').upload(path, file)
+      if (upErr) continue
+      const { data: { publicUrl } } = supabase.storage.from('journey-photos').getPublicUrl(path)
+      const { data: photo } = await supabase.from('journey_photos').insert({
+        journey_id: journeyId,
+        entry_id: null,   // gallery photo — not linked to specific entry
+        storage_path: path,
+        url: publicUrl,
+        original_name: file.name,
+        mime_type: file.type,
+        file_size: file.size,
+        shared: true,
+      }).select().single()
+      if (photo) results.push(photo)
+    }
+    return { photos: results }
+  },
+
+  linkPhoto: async (entryId: number, photoId: number): Promise<any> => {
+    const { data: photo } = await supabase.from('journey_photos').select('journey_id').eq('id', photoId).single()
+    if (!photo) return { success: false }
+    const { error } = await supabase.from('journey_photos').update({ entry_id: entryId }).eq('id', photoId)
+    if (error) throw error
+    return { success: true }
+  },
+
+  unlinkPhoto: async (entryId: number, photoId: number): Promise<any> => {
+    const { error } = await supabase.from('journey_photos').update({ entry_id: null }).eq('id', photoId)
+    if (error) throw error
+    return { success: true }
+  },
+
+  deleteGalleryPhoto: async (journeyId: number, photoId: number): Promise<any> => {
+    const { error } = await supabase.from('journey_photos').delete().eq('id', photoId)
+    if (error) throw error
+    return { success: true }
+  },
+
+  updatePhoto: async (photoId: number, data: Record<string, unknown>): Promise<any> => {
+    const { error } = await supabase.from('journey_photos').update(data).eq('id', photoId)
+    if (error) throw error
+    return { success: true }
+  },
+
+  deletePhoto: async (photoId: number): Promise<any> => {
+    const { error } = await supabase.from('journey_photos').delete().eq('id', photoId)
+    if (error) throw error
+    return { success: true }
+  },
+
   addProviderPhotosToGallery: async (...args: any[]): Promise<any> => ({ success: true }),
   addProviderPhoto: async (...args: any[]): Promise<any> => ({ success: true }),
   addProviderPhotos: async (...args: any[]): Promise<any> => ({ success: true }),
-  linkPhoto: async (...args: any[]): Promise<any> => ({ success: true }),
-  unlinkPhoto: async (...args: any[]): Promise<any> => ({ success: true }),
-  deleteGalleryPhoto: async (...args: any[]): Promise<any> => ({ success: true }),
-  updatePhoto: async (...args: any[]): Promise<any> => ({ success: true }),
-  deletePhoto: async (...args: any[]): Promise<any> => ({ success: true }),
-  uploadCover: async (...args: any[]): Promise<any> => ({ success: true }),
-  addContributor: async (...args: any[]): Promise<any> => ({ success: true }),
-  updateContributor: async (...args: any[]): Promise<any> => ({ success: true }),
-  removeContributor: async (...args: any[]): Promise<any> => ({ success: true }),
-  updatePreferences: async (...args: any[]): Promise<any> => ({ success: true }),
-  getShareLink: async (...args: any[]): Promise<any> => ({ url: '' }),
-  createShareLink: async (...args: any[]): Promise<any> => ({ url: '' }),
-  deleteShareLink: async (...args: any[]): Promise<any> => ({ success: true }),
-  getPublicJourney: async (...args: any[]): Promise<any> => ({ journey: {} }),
+
+  uploadCover: async (journeyId: number, formData: FormData): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) throw new Error('Not authenticated')
+    const file = formData.get('file') as File
+    if (!file) throw new Error('No file provided')
+    const ext = file.name.split('.').pop()
+    const path = `${user.id}/journeys/${journeyId}/cover.${ext}`
+    const { error } = await supabase.storage.from('trip-files').upload(path, file, { upsert: true })
+    if (error) throw error
+    const { data: { publicUrl } } = supabase.storage.from('trip-files').getPublicUrl(path)
+    await supabase.from('journeys').update({ cover_image: publicUrl }).eq('id', journeyId)
+    return { cover_image: publicUrl }
+  },
+
+  addContributor: async (journeyId: number, userId: number | string, role: string): Promise<any> => {
+    const { error } = await supabase.from('journey_contributors')
+      .upsert({ journey_id: journeyId, user_id: userId, role }, { onConflict: 'journey_id,user_id' })
+    if (error) throw error
+    return { success: true }
+  },
+
+  updateContributor: async (journeyId: number, userId: string, data: Record<string, unknown>): Promise<any> => {
+    const { error } = await supabase.from('journey_contributors').update(data)
+      .eq('journey_id', journeyId).eq('user_id', userId)
+    if (error) throw error
+    return { success: true }
+  },
+
+  removeContributor: async (journeyId: number, userId: string): Promise<any> => {
+    const { error } = await supabase.from('journey_contributors')
+      .delete().eq('journey_id', journeyId).eq('user_id', userId)
+    if (error) throw error
+    return { success: true }
+  },
+
+  updatePreferences: async (journeyId: number, data: Record<string, unknown>): Promise<any> => {
+    const { error } = await supabase.from('journeys').update(data).eq('id', journeyId)
+    if (error) throw error
+    return { success: true }
+  },
+
+  getShareLink: async (journeyId: number): Promise<any> => {
+    const { data } = await supabase.from('journey_share_links').select('*').eq('journey_id', journeyId).maybeSingle()
+    if (!data) return { link: null }
+    return { link: `${window.location.origin}/journey/public/${data.token}`, ...data }
+  },
+
+  createShareLink: async (journeyId: number, opts?: Record<string, boolean>): Promise<any> => {
+    const { data, error } = await supabase.from('journey_share_links')
+      .upsert({ journey_id: journeyId, ...opts }, { onConflict: 'journey_id' })
+      .select().single()
+    if (error) throw error
+    return { link: `${window.location.origin}/journey/public/${data.token}`, ...data }
+  },
+
+  deleteShareLink: async (journeyId: number): Promise<any> => {
+    const { error } = await supabase.from('journey_share_links').delete().eq('journey_id', journeyId)
+    if (error) throw error
+    return { success: true }
+  },
+
+  getPublicJourney: async (token: string): Promise<any> => {
+    const { data: shareLink } = await supabase.from('journey_share_links').select('*, journeys(*)').eq('token', token).single()
+    if (!shareLink) throw new Error('Journey not found')
+    const journey = shareLink.journeys
+    const { data: entries } = await supabase.from('journey_entries').select('*')
+      .eq('journey_id', journey.id).order('sort_order', { ascending: true })
+    const { data: gallery } = await supabase.from('journey_photos').select('*, trip_files(*)')
+      .eq('journey_id', journey.id)
+    return { journey: { ...journey, entries: entries || [], gallery: gallery || [], shareLink } }
+  },
 }
 
 export const notificationsApi = {
-  getPreferences: async (...args: any[]): Promise<any> => ({
-    available_channels: { email: true, webhook: false, inapp: true, ntfy: false },
-    event_types: ['trip_invite', 'collab_chat', 'collab_poll', 'collab_note'],
-    implemented_combinations: {
-      trip_invite: ['email', 'inapp'],
-      collab_chat: ['inapp'],
-      collab_poll: ['inapp'],
-      collab_note: ['inapp']
-    },
-    preferences: {}
-  }),
-  updatePreferences: async (...args: any[]): Promise<any> => ({ success: true }),
+  getPreferences: async (): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    const base = {
+      available_channels: { email: true, webhook: false, inapp: true, ntfy: false },
+      event_types: ['trip_invite', 'collab_chat', 'collab_poll', 'collab_note'],
+      implemented_combinations: {
+        trip_invite: ['email', 'inapp'],
+        collab_chat: ['inapp'],
+        collab_poll: ['inapp'],
+        collab_note: ['inapp']
+      },
+      preferences: {} as Record<string, Record<string, boolean>>
+    }
+    if (!user) return base
+    const { data } = await supabase.from('notification_channel_preferences')
+      .select('event_type, channel, enabled').eq('user_id', user.id)
+    for (const row of (data || [])) {
+      if (!base.preferences[row.event_type]) base.preferences[row.event_type] = {}
+      base.preferences[row.event_type][row.channel] = row.enabled
+    }
+    return base
+  },
+  updatePreferences: async (eventTypeOrObject: string | Record<string, Record<string, boolean>>, channel?: string, enabled?: boolean): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return { success: true }
+    // Support both (eventType, channel, enabled) and legacy ({...}) call formats
+    if (typeof eventTypeOrObject === 'object') {
+      // Legacy: bulk update — upsert all entries
+      for (const [et, channels] of Object.entries(eventTypeOrObject)) {
+        for (const [ch, en] of Object.entries(channels)) {
+          await supabase.from('notification_channel_preferences')
+            .upsert({ user_id: user.id, event_type: et, channel: ch, enabled: en }, { onConflict: 'user_id,event_type,channel' })
+        }
+      }
+      return { success: true }
+    }
+    const { error } = await supabase.from('notification_channel_preferences')
+      .upsert({ user_id: user.id, event_type: eventTypeOrObject, channel, enabled }, { onConflict: 'user_id,event_type,channel' })
+    if (error) throw error
+    return { success: true }
+  },
   testSmtp: async (...args: any[]): Promise<any> => ({ success: true }),
   testWebhook: async (...args: any[]): Promise<any> => ({ success: true }),
   testNtfy: async (...args: any[]): Promise<any> => ({ success: true }),
