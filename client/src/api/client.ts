@@ -1625,10 +1625,60 @@ export const mapsApi = {
 }
 
 export const shareApi = {
-  getLink: async (tripId: number | string): Promise<any> => ({ token: '', share_map: true, share_bookings: true, share_packing: false, share_budget: false, share_collab: false }),
-  createLink: async (tripId: number | string, perms?: any): Promise<any> => ({ token: 'mock-token', share_map: true, share_bookings: true, share_packing: false, share_budget: false, share_collab: false }),
-  deleteLink: async (tripId: number | string) => ({ success: true }),
-  getSharedTrip: async (token: string): Promise<any> => ({ trip: {} }),
+  getLink: async (tripId: number | string): Promise<any> => {
+    const { data, error } = await supabase
+      .from('trip_share_links')
+      .select('*')
+      .eq('trip_id', tripId)
+      .maybeSingle()
+    if (error) throw error
+    if (!data) return { token: '', share_map: true, share_bookings: true, share_packing: false, share_budget: false, share_collab: false }
+    return data
+  },
+  createLink: async (tripId: number | string, perms?: any): Promise<any> => {
+    const userId = (await supabase.auth.getUser()).data.user?.id
+    const { data, error } = await supabase
+      .from('trip_share_links')
+      .upsert({
+        trip_id: tripId,
+        created_by: userId,
+        share_map: perms?.share_map ?? true,
+        share_bookings: perms?.share_bookings ?? true,
+        share_packing: perms?.share_packing ?? false,
+        share_budget: perms?.share_budget ?? false,
+        share_collab: perms?.share_collab ?? false,
+      }, { onConflict: 'trip_id' })
+      .select()
+      .single()
+    if (error) throw error
+    return data
+  },
+  deleteLink: async (tripId: number | string) => {
+    const { error } = await supabase
+      .from('trip_share_links')
+      .delete()
+      .eq('trip_id', tripId)
+    if (error) throw error
+    return { success: true }
+  },
+  getSharedTrip: async (token: string): Promise<any> => {
+    const { data: link, error: linkError } = await supabase
+      .from('trip_share_links')
+      .select('*, trips(*, days(*), places(*), reservations(*), packing_items(*), budget_items(*), collab_messages(*))')
+      .eq('token', token)
+      .single()
+    if (linkError || !link) throw new Error('Shared link not found or expired')
+    return {
+      trip: link.trips,
+      permissions: {
+        share_map: link.share_map,
+        share_bookings: link.share_bookings,
+        share_packing: link.share_packing,
+        share_budget: link.share_budget,
+        share_collab: link.share_collab,
+      }
+    }
+  },
 }
 
 export const backupApi = {
@@ -1649,35 +1699,25 @@ export const adminApi = {
     return { users: data || [] }
   },
   createUser: async (data: any): Promise<any> => {
-    const { data: authData, error: signUpError } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: {
-        data: {
-          username: data.username
-        }
-      }
-    })
-    if (signUpError) throw signUpError
-    if (!authData.user) throw new Error("Failed to create user")
-
-    if (data.role && data.role !== 'user') {
-      const { error: roleError } = await supabase
-        .from('profiles')
-        .update({ role: data.role })
-        .eq('id', authData.user.id)
-      if (roleError) throw roleError
-    }
-
-    return {
-      user: {
-        id: authData.user.id,
-        username: data.username,
+    // Use Edge Function with service role key to create user WITHOUT email confirmation
+    const session = (await supabase.auth.getSession()).data.session
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({
         email: data.email,
+        password: data.password,
+        username: data.username,
         role: data.role || 'user',
-        created_at: authData.user.created_at
-      }
-    }
+      })
+    })
+    const result = await response.json()
+    if (!response.ok) throw new Error(result.error || 'Failed to create user')
+    return result
   },
   updateUser: async (id: any, data: any): Promise<any> => {
     const { data: user, error } = await supabase
