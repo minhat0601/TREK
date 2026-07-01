@@ -9,7 +9,8 @@ alter table public.reservations
   add column if not exists flight_number text,
   add column if not exists carrier      text,
   add column if not exists seat         text,
-  add column if not exists booking_ref  text;
+  add column if not exists booking_ref  text,
+  add column if not exists needs_review boolean  default false;
 
 create index if not exists idx_reservations_endpoints
   on public.reservations using gin(endpoints)
