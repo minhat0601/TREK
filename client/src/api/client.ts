@@ -373,12 +373,45 @@ export const tripsApi = {
   unarchive: (id: number | string) => tripsApi.update(id, { is_archived: false }),
 
   getMembers: async (id: number | string): Promise<any> => {
-    const { data: members, error } = await supabase
+    // 1. Get the trip owner id
+    const { data: trip } = await supabase
+      .from('trips')
+      .select('user_id')
+      .eq('id', id)
+      .single()
+    const ownerId = trip?.user_id
+
+    // 2. Get the members
+    const { data: members } = await supabase
       .from('trip_members')
-      .select('*')
+      .select('user_id')
       .eq('trip_id', id)
-    if (error) throw error
-    return { members: members || [], owner: {} as any }
+    
+    const userIds = [ownerId, ...(members || []).map(m => m.user_id)].filter(Boolean)
+
+    // 3. Get profiles
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', userIds)
+
+    const ownerProfile = profiles?.find(p => p.id === ownerId)
+    const memberProfiles = profiles?.filter(p => p.id !== ownerId) || []
+
+    return {
+      owner: ownerProfile ? {
+        id: ownerProfile.id,
+        username: ownerProfile.username,
+        avatar_url: ownerProfile.avatar_url,
+        role: ownerProfile.role
+      } : null,
+      members: memberProfiles.map(p => ({
+        id: p.id,
+        username: p.username,
+        avatar_url: p.avatar_url,
+        role: p.role
+      }))
+    }
   },
 
   addMember: async (id: number | string, identifier: string) => {
@@ -522,7 +555,15 @@ export const placesApi = {
     return { success: true }
   },
 
-  bulkDelete: async (...args: any[]): Promise<any> => ({ success: true }),
+  bulkDelete: async (tripId: number | string, placeIds: (number | string)[]) => {
+    const { error } = await supabase
+      .from('places')
+      .delete()
+      .eq('trip_id', tripId)
+      .in('id', placeIds)
+    if (error) throw error
+    return { success: true }
+  },
   importGpx: async (tripId: number | string, file: File, options?: any): Promise<any> => ({ count: 0, places: [] }),
   importMapFile: async (tripId: number | string, file: File, options?: any): Promise<any> => ({ count: 0, places: [] }),
   importGoogleList: async (tripId: number | string, url: string, enrich?: boolean): Promise<any> => ({ count: 0, places: [] }),
@@ -1328,26 +1369,121 @@ export const inAppNotificationsApi = {
 }
 
 export const filesApi = {
-  list: async (tripId: number | string, isTrash?: boolean): Promise<any> => ({ files: [] }),
+  list: async (tripId: number | string, isTrash?: boolean): Promise<any> => {
+    let query = supabase
+      .from('trip_files')
+      .select('*')
+      .eq('trip_id', tripId)
+    if (isTrash !== undefined) {
+      query = query.eq('is_deleted', isTrash)
+    }
+    const { data, error } = await query
+    if (error) throw error
+    return { files: data || [] }
+  },
+
   upload: async (tripId: number | string, formData: FormData) => {
     const file = formData.get('file') as File
-    const mockFile: TripFile = {
-      id: Date.now(),
-      trip_id: Number(tripId),
-      filename: file?.name || 'file',
-      original_name: file?.name || 'file',
-      mime_type: file?.type || 'application/octet-stream',
-      url: '',
-      created_at: new Date().toISOString()
-    }
-    return { file: mockFile }
+    if (!file) throw new Error('No file provided')
+    
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) throw new Error('Not authenticated')
+
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${tripId}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('photos')
+      .upload(fileName, file)
+    if (uploadError) throw uploadError
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('photos')
+      .getPublicUrl(fileName)
+
+    const { data: tripFile, error: dbError } = await supabase
+      .from('trip_files')
+      .insert([{
+        trip_id: tripId,
+        filename: fileName,
+        original_name: file.name,
+        mime_type: file.type || 'application/octet-stream',
+        size: file.size,
+        url: publicUrl,
+        uploaded_by: user.id
+      }])
+      .select()
+      .single()
+
+    if (dbError) throw dbError
+    return { file: tripFile }
   },
-  update: async (tripId: number | string, id: number, data: any) => ({ success: true }),
-  delete: async (tripId: number | string, id: number) => ({ success: true }),
-  toggleStar: async (tripId: number | string, id: number) => ({ success: true }),
-  restore: async (tripId: number | string, id: number) => ({ success: true }),
-  permanentDelete: async (tripId: number | string, id: number) => ({ success: true }),
-  emptyTrash: async (tripId: number | string) => ({ success: true }),
+
+  update: async (tripId: number | string, id: number, data: any) => {
+    const { error } = await supabase
+      .from('trip_files')
+      .update(data)
+      .eq('id', id)
+    if (error) throw error
+    return { success: true }
+  },
+
+  delete: async (tripId: number | string, id: number) => {
+    const { error } = await supabase
+      .from('trip_files')
+      .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) throw error
+    return { success: true }
+  },
+
+  toggleStar: async (tripId: number | string, id: number) => {
+    const { data: file } = await supabase.from('trip_files').select('starred').eq('id', id).single()
+    const { error } = await supabase
+      .from('trip_files')
+      .update({ starred: !file?.starred })
+      .eq('id', id)
+    if (error) throw error
+    return { success: true }
+  },
+
+  restore: async (tripId: number | string, id: number) => {
+    const { error } = await supabase
+      .from('trip_files')
+      .update({ is_deleted: false, deleted_at: null })
+      .eq('id', id)
+    if (error) throw error
+    return { success: true }
+  },
+
+  permanentDelete: async (tripId: number | string, id: number) => {
+    const { data: file } = await supabase.from('trip_files').select('filename').eq('id', id).single()
+    if (file?.filename) {
+      await supabase.storage.from('photos').remove([file.filename])
+    }
+    const { error } = await supabase.from('trip_files').delete().eq('id', id)
+    if (error) throw error
+    return { success: true }
+  },
+
+  emptyTrash: async (tripId: number | string) => {
+    const { data: files } = await supabase
+      .from('trip_files')
+      .select('id, filename')
+      .eq('trip_id', tripId)
+      .eq('is_deleted', true)
+
+    if (files && files.length > 0) {
+      const fileNames = files.map(f => f.filename).filter(Boolean)
+      if (fileNames.length > 0) {
+        await supabase.storage.from('photos').remove(fileNames)
+      }
+      const ids = files.map(f => f.id)
+      await supabase.from('trip_files').delete().in('id', ids)
+    }
+    return { success: true }
+  },
+
   addLink: async (tripId: number | string, fileId: number, data: any) => ({ success: true }),
   removeLink: async (tripId: number | string, fileId: number, linkId: number) => ({ success: true }),
   getLinks: async (tripId: number | string, fileId: number) => ({ links: [] }),
