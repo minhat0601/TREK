@@ -14,7 +14,7 @@ export function useResetPassword() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const token = params.get('token') || ''
+  const token = params.get('token') || params.get('code') || 'supabase'
 
   const [pw, setPw] = useState('')
   const [pw2, setPw2] = useState('')

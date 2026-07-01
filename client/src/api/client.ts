@@ -238,7 +238,11 @@ export const authApi = {
     loginVerify: async (...args: any[]): Promise<any> => ({}),
   },
   changePassword: async (...args: any[]): Promise<any> => ({ success: true }),
-  resetPassword: async (...args: any[]): Promise<any> => ({ success: true }),
+  resetPassword: async (data: any): Promise<any> => {
+    const { error } = await supabase.auth.updateUser({ password: data.new_password })
+    if (error) throw error
+    return { success: true }
+  },
   mcpTokens: {
     list: async (...args: any[]): Promise<any> => ({ tokens: [] }),
     create: async (...args: any[]): Promise<any> => ({ token: {} }),
@@ -248,7 +252,12 @@ export const authApi = {
   updateAppSettings: async (...args: any[]): Promise<any> => ({}),
   validateKeys: async (...args: any[]): Promise<any> => ({}),
   travelStats: async (...args: any[]): Promise<any> => ({}),
-  forgotPassword: async (...args: any[]): Promise<any> => ({}),
+  forgotPassword: async (data: { email: string }) => {
+    const redirectTo = `${window.location.origin}/reset-password`
+    const { error } = await supabase.auth.resetPasswordForEmail(data.email, { redirectTo })
+    if (error) throw error
+    return { success: true }
+  },
   validateInvite: async (...args: any[]): Promise<any> => ({}),
 }
 
