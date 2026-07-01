@@ -2352,7 +2352,7 @@ export const journeyApi = {
       supabase.from('journey_entries').select('*').eq('journey_id', id).order('sort_order', { ascending: true }),
       supabase.from('journey_trips').select('*, trips(id, title, start_date, end_date, cover_image, currency)').eq('journey_id', id),
       supabase.from('journey_contributors').select('*, profiles(username, avatar_url)').eq('journey_id', id),
-      supabase.from('journey_photos').select('*, trip_files(*)').eq('journey_id', id).order('sort_order', { ascending: true }),
+      supabase.from('journey_photos').select('*').eq('journey_id', id).order('sort_order', { ascending: true }),
     ])
     const get = (r: PromiseSettledResult<any>) => r.status === 'fulfilled' ? r.value.data ?? [] : []
     const entries = get(entriesRes)
@@ -2602,7 +2602,7 @@ export const journeyApi = {
     const journey = shareLink.journeys
     const { data: entries } = await supabase.from('journey_entries').select('*')
       .eq('journey_id', journey.id).order('sort_order', { ascending: true })
-    const { data: gallery } = await supabase.from('journey_photos').select('*, trip_files(*)')
+    const { data: gallery } = await supabase.from('journey_photos').select('*')
       .eq('journey_id', journey.id)
     return { journey: { ...journey, entries: entries || [], gallery: gallery || [], shareLink } }
   },
