@@ -257,41 +257,85 @@ export const authApi = {
 // -----------------------------------------------------------------------------
 export const tripsApi = {
   list: async (params?: Record<string, any>) => {
-    let query = supabase.from('trips').select('*, trip_members(*)')
+    let query = supabase.from('trips').select('*, trip_members(*), days(id), places(id)')
     if (params?.archived !== undefined) {
       query = query.eq('is_archived', !!params.archived)
     }
     const { data, error } = await query
     if (error) throw error
-    return { trips: data || [] }
+    const mapped = (data || []).map((t: any) => ({
+      ...t,
+      day_count: t.days?.length || 0,
+      place_count: t.places?.length || 0
+    }))
+    return { trips: mapped }
   },
 
   create: async (data: TripCreateRequest) => {
     const user = (await supabase.auth.getUser()).data.user
     if (!user) throw new Error('Not authenticated')
+    
+    // Calculate day count
+    let dayCount = 7
+    if (data.start_date && data.end_date) {
+      const start = new Date(data.start_date)
+      const end = new Date(data.end_date)
+      dayCount = Math.max(1, Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+    } else if ((data as any).day_count) {
+      dayCount = Number((data as any).day_count)
+    }
+
+    // Strip day_count from payload to avoid PostgreSQL schema cache error
+    const { day_count, ...insertData } = data as any
+
     const { data: trip, error } = await supabase
       .from('trips')
-      .insert([{ ...data, user_id: user.id }])
+      .insert([{ ...insertData, user_id: user.id }])
       .select()
       .single()
     if (error) throw error
+
+    // Automatically seed days in the days table for this trip
+    const dayInserts = Array.from({ length: dayCount }).map((_, idx) => {
+      let dayDate: string | null = null
+      if (data.start_date) {
+        const d = new Date(data.start_date)
+        d.setDate(d.getDate() + idx)
+        dayDate = d.toISOString().split('T')[0]
+      }
+      return {
+        trip_id: trip.id,
+        day_number: idx + 1,
+        date: dayDate
+      }
+    })
+    
+    const { error: daysError } = await supabase.from('days').insert(dayInserts)
+    if (daysError) console.error('Failed to seed days:', daysError)
+
     return { trip }
   },
 
   get: async (id: number | string) => {
     const { data: trip, error } = await supabase
       .from('trips')
-      .select('*, trip_members(*)')
+      .select('*, trip_members(*), days(id), places(id)')
       .eq('id', id)
       .single()
     if (error) throw error
-    return { trip }
+    const mapped = {
+      ...trip,
+      day_count: trip.days?.length || 0,
+      place_count: trip.places?.length || 0
+    }
+    return { trip: mapped }
   },
 
   update: async (id: number | string, data: TripUpdateRequest) => {
+    const { day_count, ...updateData } = data as any
     const { data: trip, error } = await supabase
       .from('trips')
-      .update(data)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single()
