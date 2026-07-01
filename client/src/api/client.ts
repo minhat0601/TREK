@@ -1782,21 +1782,137 @@ export const adminApi = {
   updatePlacesDetails: async (enabled: boolean) => ({ success: true }),
   getCollabFeatures: async (): Promise<any> => ({ chat: false, notes: false, polls: false, whatsnext: false }),
   updateCollabFeatures: async (features: any) => ({ success: true }),
-  packingTemplates: async (): Promise<any> => ({ templates: [] }),
-  getPackingTemplate: async (id: number): Promise<any> => ({ template: { categories: [], items: [] } }),
-  createPackingTemplate: async (data: any): Promise<any> => ({ template: {} }),
-  updatePackingTemplate: async (id: number, data: any): Promise<any> => ({ template: {} }),
-  deletePackingTemplate: async (id: number) => ({ success: true }),
-  addTemplateCategory: async (templateId: number, data: any): Promise<any> => ({ category: {} }),
-  updateTemplateCategory: async (templateId: number, catId: number, data: any): Promise<any> => ({ category: {} }),
-  deleteTemplateCategory: async (templateId: number, catId: number) => ({ success: true }),
-  addTemplateItem: async (templateId: number, catId: number, data: any): Promise<any> => ({ item: {} }),
-  updateTemplateItem: async (templateId: number, itemId: number, data: any): Promise<any> => ({ item: {} }),
-  deleteTemplateItem: async (templateId: number, itemId: number) => ({ success: true }),
-  listInvites: async () => ({ invites: [] }),
-  createInvite: async (data: any): Promise<any> => ({ invite: { token: 'mock' } }),
-  deleteInvite: async (id: number) => ({ success: true }),
-  auditLog: async (params?: any): Promise<any> => ({ entries: [], total: 0 }),
+  packingTemplates: async (): Promise<any> => {
+    const { data: templates, error } = await supabase
+      .from('packing_templates')
+      .select('*, packing_template_categories(*, packing_template_items(*))')
+      .order('sort_order', { ascending: true })
+    if (error) throw error
+    return { templates: templates || [] }
+  },
+  getPackingTemplate: async (id: number): Promise<any> => {
+    const { data, error } = await supabase
+      .from('packing_templates')
+      .select('*, packing_template_categories(*, packing_template_items(*))')
+      .eq('id', id)
+      .single()
+    if (error) throw error
+    return { template: data }
+  },
+  createPackingTemplate: async (data: any): Promise<any> => {
+    const { data: template, error } = await supabase
+      .from('packing_templates')
+      .insert([{ name: data.name, description: data.description, icon: data.icon || '🎒' }])
+      .select()
+      .single()
+    if (error) throw error
+    return { template }
+  },
+  updatePackingTemplate: async (id: number, data: any): Promise<any> => {
+    const { data: template, error } = await supabase
+      .from('packing_templates')
+      .update({ name: data.name, description: data.description, icon: data.icon })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return { template }
+  },
+  deletePackingTemplate: async (id: number) => {
+    const { error } = await supabase.from('packing_templates').delete().eq('id', id)
+    if (error) throw error
+    return { success: true }
+  },
+  addTemplateCategory: async (templateId: number, data: any): Promise<any> => {
+    const { data: category, error } = await supabase
+      .from('packing_template_categories')
+      .insert([{ template_id: templateId, name: data.name, icon: data.icon || '📦' }])
+      .select()
+      .single()
+    if (error) throw error
+    return { category }
+  },
+  updateTemplateCategory: async (templateId: number, catId: number, data: any): Promise<any> => {
+    const { data: category, error } = await supabase
+      .from('packing_template_categories')
+      .update({ name: data.name, icon: data.icon })
+      .eq('id', catId)
+      .eq('template_id', templateId)
+      .select()
+      .single()
+    if (error) throw error
+    return { category }
+  },
+  deleteTemplateCategory: async (templateId: number, catId: number) => {
+    const { error } = await supabase.from('packing_template_categories').delete().eq('id', catId)
+    if (error) throw error
+    return { success: true }
+  },
+  addTemplateItem: async (templateId: number, catId: number, data: any): Promise<any> => {
+    const { data: item, error } = await supabase
+      .from('packing_template_items')
+      .insert([{ template_id: templateId, category_id: catId, name: data.name }])
+      .select()
+      .single()
+    if (error) throw error
+    return { item }
+  },
+  updateTemplateItem: async (templateId: number, itemId: number, data: any): Promise<any> => {
+    const { data: item, error } = await supabase
+      .from('packing_template_items')
+      .update({ name: data.name })
+      .eq('id', itemId)
+      .select()
+      .single()
+    if (error) throw error
+    return { item }
+  },
+  deleteTemplateItem: async (templateId: number, itemId: number) => {
+    const { error } = await supabase.from('packing_template_items').delete().eq('id', itemId)
+    if (error) throw error
+    return { success: true }
+  },
+  listInvites: async () => {
+    const { data, error } = await supabase
+      .from('invite_links')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    return { invites: data || [] }
+  },
+  createInvite: async (data: any): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    const profile = user ? (await supabase.from('profiles').select('username').eq('id', user.id).single()).data : null
+    const expiresAt = data.expires_in_days
+      ? new Date(Date.now() + data.expires_in_days * 86400000).toISOString()
+      : null
+    const { data: invite, error } = await supabase
+      .from('invite_links')
+      .insert([{
+        max_uses: data.max_uses || 1,
+        expires_at: expiresAt,
+        created_by: user?.id,
+        created_by_name: profile?.username || user?.email || 'admin',
+      }])
+      .select()
+      .single()
+    if (error) throw error
+    return { invite }
+  },
+  deleteInvite: async (id: number) => {
+    const { error } = await supabase.from('invite_links').delete().eq('id', id)
+    if (error) throw error
+    return { success: true }
+  },
+  auditLog: async (params?: any): Promise<any> => {
+    let query = supabase.from('audit_log').select('*', { count: 'exact' }).order('created_at', { ascending: false })
+    if (params?.limit) query = query.limit(params.limit)
+    else query = query.limit(100)
+    if (params?.offset) query = query.range(params.offset, params.offset + (params?.limit || 100) - 1)
+    const { data, error, count } = await query
+    if (error) throw error
+    return { entries: data || [], total: count || 0 }
+  },
   mcpTokens: async () => ({ tokens: [] }),
   deleteMcpToken: async (id: number) => ({ success: true }),
   oauthSessions: async () => ({ sessions: [] }),
