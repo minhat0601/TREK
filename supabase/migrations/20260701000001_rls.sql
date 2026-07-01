@@ -62,7 +62,7 @@ create policy "Users can select trips they have access to"
 
 create policy "Users can insert trips with their owner ID"
   on public.trips for insert
-  with check (auth.uid() = user_id);
+  with check (auth.role() = 'authenticated');
 
 create policy "Users can update trips they have access to"
   on public.trips for update
