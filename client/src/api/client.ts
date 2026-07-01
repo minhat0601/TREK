@@ -267,7 +267,27 @@ export const authApi = {
     if (error) throw error
     return { success: true }
   },
-  deleteOwnAccount: async (...args: any[]): Promise<any> => ({ success: true }),
+  deleteOwnAccount: async (): Promise<any> => {
+    // Supabase Admin API is required to delete a user — use Edge Function
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error('Not authenticated')
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-account`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      }
+    )
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body?.message || 'Failed to delete account')
+    }
+    await supabase.auth.signOut()
+    return { success: true }
+  },
 
   passkey: {
     list: async (): Promise<any> => ({ credentials: [] }),
@@ -278,7 +298,12 @@ export const authApi = {
     loginOptions: async (...args: any[]): Promise<any> => ({}),
     loginVerify: async (...args: any[]): Promise<any> => ({}),
   },
-  changePassword: async (...args: any[]): Promise<any> => ({ success: true }),
+  changePassword: async (data: { current_password?: string; new_password: string }): Promise<any> => {
+    // Active session proves identity; Supabase client has no reauthentication endpoint
+    const { error } = await supabase.auth.updateUser({ password: data.new_password })
+    if (error) throw error
+    return { success: true }
+  },
   resetPassword: async (data: any): Promise<any> => {
     const { error } = await supabase.auth.updateUser({ password: data.new_password })
     if (error) throw error
@@ -310,15 +335,61 @@ export const authApi = {
     }
     return { success: true }
   },
-  validateKeys: async (...args: any[]): Promise<any> => ({}),
-  travelStats: async (...args: any[]): Promise<any> => ({}),
+  validateKeys: async (): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return {}
+    const { data: profile } = await supabase.from('profiles')
+      .select('maps_api_key, openweather_api_key').eq('id', user.id).single()
+    const mapsKey = profile?.maps_api_key || ''
+    const weatherKey = profile?.openweather_api_key || ''
+    return {
+      maps: mapsKey.length > 0
+        ? { valid: mapsKey.startsWith('AIza') && mapsKey.length >= 39, key: mapsKey.slice(0, 8) + '...' }
+        : { valid: false, key: null },
+      weather: weatherKey.length > 0
+        ? { valid: /^[a-f0-9]{32}$/.test(weatherKey), key: weatherKey.slice(0, 8) + '...' }
+        : { valid: false, key: null },
+    }
+  },
+  travelStats: async (): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return {}
+    const { data: tripIds } = await supabase.from('trips').select('id, start_date, end_date')
+      .eq('user_id', user.id).eq('is_archived', false)
+    const ids = (tripIds || []).map((t: any) => t.id)
+    const [placesRes] = await Promise.allSettled([
+      ids.length > 0
+        ? supabase.from('places').select('id', { count: 'exact', head: true }).in('trip_id', ids)
+        : Promise.resolve({ count: 0 }),
+    ])
+    const totalDays = (tripIds || []).reduce((sum: number, t: any) => {
+      if (!t.start_date || !t.end_date) return sum
+      return sum + Math.max(0, Math.ceil((new Date(t.end_date).getTime() - new Date(t.start_date).getTime()) / 86400000))
+    }, 0)
+    const placesCount = placesRes.status === 'fulfilled' ? (placesRes.value as any)?.count ?? 0 : 0
+    return {
+      total_trips: ids.length,
+      total_places: placesCount,
+      total_days: totalDays,
+      upcoming_trips: (tripIds || []).filter((t: any) => t.start_date && new Date(t.start_date) > new Date()).length,
+    }
+  },
   forgotPassword: async (data: { email: string }) => {
     const redirectTo = `${window.location.origin}/reset-password`
     const { error } = await supabase.auth.resetPasswordForEmail(data.email, { redirectTo })
     if (error) throw error
     return { success: true }
   },
-  validateInvite: async (...args: any[]): Promise<any> => ({}),
+  validateInvite: async (token: string): Promise<any> => {
+    const { data, error } = await supabase.from('invite_links')
+      .select('id, token, expires_at, max_uses, use_count')
+      .eq('token', token)
+      .single()
+    if (error || !data) throw new Error('Invalid invite link')
+    if (data.expires_at && new Date(data.expires_at) < new Date()) throw new Error('Invite link has expired')
+    if (data.max_uses != null && data.use_count >= data.max_uses) throw new Error('Invite link has reached max uses')
+    return { valid: true, invite: data }
+  },
 }
 
 // -----------------------------------------------------------------------------
@@ -755,7 +826,13 @@ export const assignmentsApi = {
     return { success: true, participants: [] }
   },
 
-  updateTime: async (...args: any[]): Promise<any> => ({}),
+  updateTime: async (_tripId: number | string, assignmentId: number, data: { place_time?: string | null; end_time?: string | null }): Promise<any> => {
+    const { error } = await supabase.from('day_assignments')
+      .update({ place_time: data.place_time ?? null, end_time: data.end_time ?? null })
+      .eq('id', assignmentId)
+    if (error) throw error
+    return { success: true }
+  },
 }
 
 // -----------------------------------------------------------------------------

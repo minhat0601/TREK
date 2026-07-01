@@ -39,5 +39,8 @@
     "@img/sharp-linuxmusl-x64": "0.35.1",
     "@rollup/rollup-linux-arm64-musl": "4.62.0",
     "@rollup/rollup-linux-x64-musl": "4.62.0"
+  },
+  "dependencies": {
+    "pg": "^8.22.0"
   }
 }

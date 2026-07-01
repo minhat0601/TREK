@@ -26,8 +26,12 @@ export function formatDate(d: string, locale?: string): { weekday: string; month
   }
 }
 
-export function photoUrl(p: { photo_id: number }, size: 'thumbnail' | 'original' = 'thumbnail'): string {
-  return `/api/photos/${p.photo_id}/${size}`
+export function photoUrl(p: { photo_id?: number | null; url?: string | null }, size: 'thumbnail' | 'original' = 'thumbnail'): string {
+  // New schema: photos stored in Supabase Storage with direct URL
+  if (p.url) return p.url
+  // Legacy schema: photos referenced by photo_id through API
+  if (p.photo_id) return `/api/photos/${p.photo_id}/${size}`
+  return ''
 }
 
 export function groupPhotosByDate(photos: any[]): { date: string; label: string; assets: any[] }[] {

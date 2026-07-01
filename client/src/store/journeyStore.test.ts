@@ -76,18 +76,21 @@ function buildPhoto(overrides: Record<string, unknown> = {}): JourneyPhoto {
   const id = (overrides.id as number) ?? nextId();
   return {
     id,
+    journey_id: 1,
     entry_id: 1,
     provider: 'local',
     asset_id: null,
     owner_id: null,
     file_path: `/uploads/photo_${id}.jpg`,
+    url: null,
+    storage_path: null,
     thumbnail_path: null,
     caption: null,
     sort_order: 0,
     width: null,
     height: null,
-    shared: 0,
-    created_at: Date.now(),
+    shared: false,
+    created_at: new Date().toISOString(),
     ...overrides,
   } as JourneyPhoto;
 }

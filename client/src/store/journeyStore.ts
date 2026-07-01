@@ -42,13 +42,16 @@ export interface JourneyEntry {
 
 export interface JourneyPhoto {
   id: number
-  entry_id: number
-  photo_id: number
-  caption?: string | null
-  sort_order: number
-  shared: number
-  created_at: number
-  // Joined from trek_photos for display
+  journey_id: number
+  entry_id: number | null
+  // New schema: direct storage (journey-photos bucket)
+  storage_path?: string | null
+  url?: string | null
+  original_name?: string | null
+  mime_type?: string
+  file_size?: number | null
+  // Legacy fields kept for UI component compatibility
+  photo_id?: number
   provider?: string
   asset_id?: string | null
   owner_id?: number | null
@@ -56,17 +59,24 @@ export interface JourneyPhoto {
   thumbnail_path?: string | null
   width?: number | null
   height?: number | null
+  caption?: string | null
+  sort_order: number
+  shared: boolean
+  created_at: string
 }
 
 export interface GalleryPhoto {
   id: number
   journey_id: number
-  photo_id: number
-  caption?: string | null
-  shared: number
-  sort_order: number
-  created_at: number
-  // Joined from trek_photos for display
+  entry_id?: number | null
+  // New schema: direct storage (journey-photos bucket)
+  storage_path?: string | null
+  url?: string | null
+  original_name?: string | null
+  mime_type?: string
+  file_size?: number | null
+  // Legacy fields kept for UI component compatibility
+  photo_id?: number
   provider?: string
   asset_id?: string | null
   owner_id?: number | null
@@ -74,6 +84,10 @@ export interface GalleryPhoto {
   thumbnail_path?: string | null
   width?: number | null
   height?: number | null
+  caption?: string | null
+  shared: boolean
+  sort_order: number
+  created_at: string
 }
 
 export interface JourneyTrip {
