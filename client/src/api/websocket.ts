@@ -105,11 +105,14 @@ export function joinTrip(tripId: number | string): void {
   }
 
   // Subscribe to changes on each table filtered by trip_id
+  // day_notes has trip_id column so it gets the trip-scoped filter
   const tablesWithTripId = [
     'places', 'days', 'packing_items', 'todo_items',
-    'budget_items', 'collab_notes', 'collab_polls', 'collab_messages', 'trip_files'
+    'budget_items', 'collab_notes', 'collab_polls', 'collab_messages', 'trip_files',
+    'day_notes', 'reservations', 'day_accommodations'
   ]
-  const tablesWithoutTripId = ['day_assignments', 'day_notes']
+  // day_assignments links via day_id (no direct trip_id), RLS restricts by membership
+  const tablesViaFk = ['day_assignments']
 
   tablesWithTripId.forEach(table => {
     channel.on('postgres_changes', {
@@ -120,7 +123,7 @@ export function joinTrip(tripId: number | string): void {
     }, (payload) => handleDbChange(table, payload))
   })
 
-  tablesWithoutTripId.forEach(table => {
+  tablesViaFk.forEach(table => {
     channel.on('postgres_changes', {
       event: '*',
       schema: 'public',

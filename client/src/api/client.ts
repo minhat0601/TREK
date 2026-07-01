@@ -499,7 +499,42 @@ export const tripsApi = {
   },
 
   bundle: async (id: number | string): Promise<any> => {
-    return { bundle: {} }
+    // Fetch all trip data in parallel for offline sync (Dexie)
+    const [tripRes, daysRes, placesRes, assignmentsRes, packingRes, todoRes, budgetRes, reservationsRes, notesRes, accommodationsRes, collabNotesRes, collabPollsRes, collabMessagesRes, filesRes] = await Promise.allSettled([
+      supabase.from('trips').select('*, trip_members(*)').eq('id', id).single(),
+      supabase.from('days').select('*, day_assignments(*), day_notes(*)').eq('trip_id', id),
+      supabase.from('places').select('*').eq('trip_id', id),
+      supabase.from('day_assignments').select('*').eq('day_id', id), // will be empty but safe
+      supabase.from('packing_items').select('*').eq('trip_id', id),
+      supabase.from('todo_items').select('*').eq('trip_id', id),
+      supabase.from('budget_items').select('*').eq('trip_id', id),
+      supabase.from('reservations').select('*').eq('trip_id', id),
+      supabase.from('day_notes').select('*').eq('trip_id', id),
+      supabase.from('day_accommodations').select('*').eq('trip_id', id),
+      supabase.from('collab_notes').select('*').eq('trip_id', id),
+      supabase.from('collab_polls').select('*, collab_poll_votes(*)').eq('trip_id', id),
+      supabase.from('collab_messages').select('*').eq('trip_id', id),
+      supabase.from('trip_files').select('*').eq('trip_id', id).eq('is_deleted', false),
+    ])
+    const get = (r: PromiseSettledResult<any>, key = 'data') =>
+      r.status === 'fulfilled' ? (r.value[key] ?? r.value.data) : null
+    return {
+      bundle: {
+        trip: get(tripRes),
+        days: get(daysRes) ?? [],
+        places: get(placesRes) ?? [],
+        packing_items: get(packingRes) ?? [],
+        todo_items: get(todoRes) ?? [],
+        budget_items: get(budgetRes) ?? [],
+        reservations: get(reservationsRes) ?? [],
+        day_notes: get(notesRes) ?? [],
+        day_accommodations: get(accommodationsRes) ?? [],
+        collab_notes: get(collabNotesRes) ?? [],
+        collab_polls: get(collabPollsRes) ?? [],
+        collab_messages: get(collabMessagesRes) ?? [],
+        trip_files: get(filesRes) ?? [],
+      }
+    }
   },
 }
 
@@ -1971,14 +2006,64 @@ export const oauthApi = {
 }
 
 export const inAppNotificationsApi = {
-  list: async (...args: any[]): Promise<any> => ({ notifications: [], total: 0, unread_count: 0 }),
-  unreadCount: async (...args: any[]): Promise<any> => ({ count: 0 }),
-  markRead: async (id: number) => ({ success: true }),
-  markUnread: async (id: number) => ({ success: true }),
-  markAllRead: async () => ({ success: true }),
-  delete: async (id: number) => ({ success: true }),
-  deleteAll: async () => ({ success: true }),
-  respond: async (id: number, response: any): Promise<any> => ({ success: true, notification: {} as any }),
+  list: async (params?: { limit?: number; offset?: number; unread_only?: boolean }): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return { notifications: [], total: 0, unread_count: 0 }
+    let query = supabase.from('notifications').select('*', { count: 'exact' })
+      .eq('recipient_id', user.id).order('created_at', { ascending: false })
+    if (params?.unread_only) query = query.eq('is_read', false)
+    if (params?.limit) query = query.limit(params.limit)
+    else query = query.limit(50)
+    if (params?.offset) query = query.range(params.offset, params.offset + (params?.limit ?? 50) - 1)
+    const { data, error, count } = await query
+    if (error) throw error
+    const { data: unreadData } = await supabase.from('notifications')
+      .select('id', { count: 'exact' }).eq('recipient_id', user.id).eq('is_read', false)
+    return { notifications: data || [], total: count || 0, unread_count: unreadData?.length ?? 0 }
+  },
+  unreadCount: async (): Promise<any> => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return { count: 0 }
+    const { count } = await supabase.from('notifications')
+      .select('id', { count: 'exact', head: true }).eq('recipient_id', user.id).eq('is_read', false)
+    return { count: count ?? 0 }
+  },
+  markRead: async (id: number) => {
+    const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+    if (error) throw error
+    return { success: true }
+  },
+  markUnread: async (id: number) => {
+    const { error } = await supabase.from('notifications').update({ is_read: false }).eq('id', id)
+    if (error) throw error
+    return { success: true }
+  },
+  markAllRead: async () => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return { success: true }
+    const { error } = await supabase.from('notifications').update({ is_read: true })
+      .eq('recipient_id', user.id).eq('is_read', false)
+    if (error) throw error
+    return { success: true }
+  },
+  delete: async (id: number) => {
+    const { error } = await supabase.from('notifications').delete().eq('id', id)
+    if (error) throw error
+    return { success: true }
+  },
+  deleteAll: async () => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return { success: true }
+    const { error } = await supabase.from('notifications').delete().eq('recipient_id', user.id)
+    if (error) throw error
+    return { success: true }
+  },
+  respond: async (id: number, response: 'positive' | 'negative'): Promise<any> => {
+    const { data: notification, error } = await supabase.from('notifications')
+      .update({ response, is_read: true }).eq('id', id).select().single()
+    if (error) throw error
+    return { success: true, notification }
+  },
 }
 
 export const filesApi = {
