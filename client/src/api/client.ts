@@ -115,6 +115,19 @@ export const authApi = {
 
 
   getAppConfig: async () => {
+    const { data, error } = await supabase.from('app_settings').select('*')
+    const dbConfig: Record<string, any> = {}
+    if (data) {
+      for (const row of data) {
+        let val = row.value
+        try {
+          val = JSON.parse(row.value)
+        } catch {
+          // Keep raw string
+        }
+        dbConfig[row.key] = val
+      }
+    }
     return {
       demo_mode: false,
       dev_mode: false,
@@ -142,6 +155,7 @@ export const authApi = {
       passkey_login: false,
       passkey_configured: false,
       oidc_only_mode: false,
+      ...dbConfig
     }
   },
 
@@ -248,8 +262,27 @@ export const authApi = {
     create: async (...args: any[]): Promise<any> => ({ token: {} }),
     delete: async (...args: any[]): Promise<any> => ({ success: true }),
   },
-  getSettings: async (...args: any[]): Promise<any> => ({}),
-  updateAppSettings: async (...args: any[]): Promise<any> => ({}),
+  getSettings: async () => {
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return { settings: {} }
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    return {
+      settings: {
+        maps_api_key: profile?.maps_api_key || '',
+        openweather_api_key: profile?.openweather_api_key || ''
+      }
+    }
+  },
+  updateAppSettings: async (settings: any) => {
+    for (const [key, value] of Object.entries(settings)) {
+      const valStr = typeof value === 'string' ? value : JSON.stringify(value)
+      const { error } = await supabase
+        .from('app_settings')
+        .upsert({ key, value: valStr })
+      if (error) throw error
+    }
+    return { success: true }
+  },
   validateKeys: async (...args: any[]): Promise<any> => ({}),
   travelStats: async (...args: any[]): Promise<any> => ({}),
   forgotPassword: async (data: { email: string }) => {
@@ -1610,17 +1643,94 @@ export const backupApi = {
 }
 
 export const adminApi = {
-  users: async () => ({ users: [] }),
-  createUser: async (data: any): Promise<any> => ({ user: { id: 'mock', username: data.username || 'mock', email: data.email || 'mock@example.com', role: 'user', created_at: new Date().toISOString() } }),
-  updateUser: async (id: any, data: any): Promise<any> => ({ user: { id: String(id), username: data.username || 'mock', email: data.email || 'mock@example.com', role: 'user', created_at: new Date().toISOString() } }),
-  deleteUser: async (id: any): Promise<any> => ({ success: true, deleted: true }),
+  users: async () => {
+    const { data, error } = await supabase.from('profiles').select('id, username, email, role, created_at')
+    if (error) throw error
+    return { users: data || [] }
+  },
+  createUser: async (data: any): Promise<any> => {
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: {
+          username: data.username
+        }
+      }
+    })
+    if (signUpError) throw signUpError
+    if (!authData.user) throw new Error("Failed to create user")
+
+    if (data.role && data.role !== 'user') {
+      const { error: roleError } = await supabase
+        .from('profiles')
+        .update({ role: data.role })
+        .eq('id', authData.user.id)
+      if (roleError) throw roleError
+    }
+
+    return {
+      user: {
+        id: authData.user.id,
+        username: data.username,
+        email: data.email,
+        role: data.role || 'user',
+        created_at: authData.user.created_at
+      }
+    }
+  },
+  updateUser: async (id: any, data: any): Promise<any> => {
+    const { data: user, error } = await supabase
+      .from('profiles')
+      .update({
+        username: data.username,
+        role: data.role,
+        email: data.email
+      })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return { user }
+  },
+  deleteUser: async (id: any): Promise<any> => {
+    const { error } = await supabase.from('profiles').delete().eq('id', id)
+    if (error) throw error
+    return { success: true, deleted: true }
+  },
   resetUserPasskeys: async (id: any): Promise<any> => ({ success: true, deleted: 1 }),
-  stats: async (): Promise<any> => ({ totalUsers: 0, totalTrips: 0, totalPlaces: 0, totalFiles: 0 }),
+  stats: async (): Promise<any> => {
+    const [uCount, tCount, pCount, fCount] = await Promise.all([
+      supabase.from('profiles').select('*', { count: 'exact', head: true }),
+      supabase.from('trips').select('*', { count: 'exact', head: true }),
+      supabase.from('places').select('*', { count: 'exact', head: true }),
+      supabase.from('trip_files').select('*', { count: 'exact', head: true })
+    ])
+    return {
+      totalUsers: uCount.count || 0,
+      totalTrips: tCount.count || 0,
+      totalPlaces: pCount.count || 0,
+      totalFiles: fCount.count || 0
+    }
+  },
   saveDemoBaseline: async () => ({ success: true }),
   getOidc: async () => ({}),
   updateOidc: async (data: any) => ({ success: true }),
-  addons: async () => ({ addons: [] }),
-  updateAddon: async (id: any, data: any) => ({ success: true }),
+  addons: async () => {
+    const { data, error } = await supabase.from('addons').select('*').order('sort_order', { ascending: true })
+    if (error) throw error
+    return { addons: data || [] }
+  },
+  updateAddon: async (id: any, data: any) => {
+    const { data: addon, error } = await supabase
+      .from('addons')
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    return { addon }
+  },
   checkVersion: async (): Promise<any> => ({ update_available: false }),
   getBagTracking: async (): Promise<any> => ({ enabled: false }),
   updateBagTracking: async (enabled: boolean) => ({ success: true }),
@@ -1662,7 +1772,29 @@ export const adminApi = {
 }
 
 export const addonsApi = {
-  enabled: async (...args: any[]): Promise<any> => ({ addons: [], bagTracking: {} as any, collabFeatures: {} as any }),
+  enabled: async (): Promise<any> => {
+    const { data: addons, error: addonsError } = await supabase
+      .from('addons')
+      .select('*')
+      .eq('enabled', true)
+    if (addonsError) throw addonsError
+
+    const { data: providers, error: providersError } = await supabase
+      .from('photo_providers')
+      .select('*')
+      .eq('enabled', true)
+    if (providersError) throw providersError
+
+    const mappedAddons = [
+      ...(addons || []),
+      ...(providers || []).map(p => ({ ...p, type: 'photo_provider' }))
+    ]
+
+    return {
+      addons: mappedAddons,
+      bagTracking: addons?.some(a => a.id === 'bag-tracking' && a.enabled) || false
+    }
+  }
 }
 
 export const oauthApi = {
