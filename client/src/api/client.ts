@@ -864,12 +864,76 @@ export const categoriesApi = {
 // -----------------------------------------------------------------------------
 export const budgetApi = {
   list: async (tripId: number | string) => {
-    const { data: items, error } = await supabase
+    const { data: items, error: itemsError } = await supabase
       .from('budget_items')
       .select('*')
       .eq('trip_id', tripId)
-    if (error) throw error
-    return { items: items || [] }
+      .order('sort_order', { ascending: true })
+    if (itemsError) throw itemsError
+    if (!items || items.length === 0) return { items: [] }
+
+    const itemIds = items.map(i => i.id)
+
+    const { data: allMembers, error: membersError } = await supabase
+      .from('budget_item_members')
+      .select('*')
+      .in('budget_item_id', itemIds)
+    if (membersError) throw membersError
+
+    const { data: allPayers, error: payersError } = await supabase
+      .from('budget_item_payers')
+      .select('*')
+      .in('budget_item_id', itemIds)
+    if (payersError) throw payersError
+
+    const userIds = Array.from(new Set([
+      ...(allMembers || []).map(m => m.user_id),
+      ...(allPayers || []).map(p => p.user_id)
+    ]))
+
+    let profiles: any[] = []
+    if (userIds.length > 0) {
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .in('id', userIds)
+      if (profilesError) throw profilesError
+      profiles = profilesData || []
+    }
+
+    const profilesMap = new Map(profiles.map(p => [p.id, p]))
+
+    const membersByItem: Record<number, any[]> = {}
+    for (const m of (allMembers || [])) {
+      if (!membersByItem[m.budget_item_id]) membersByItem[m.budget_item_id] = []
+      const prof = profilesMap.get(m.user_id)
+      membersByItem[m.budget_item_id].push({
+        user_id: m.user_id,
+        paid: m.paid,
+        username: prof?.username || '',
+        avatar_url: prof?.avatar_url || null
+      })
+    }
+
+    const payersByItem: Record<number, any[]> = {}
+    for (const p of (allPayers || [])) {
+      if (!payersByItem[p.budget_item_id]) payersByItem[p.budget_item_id] = []
+      const prof = profilesMap.get(p.user_id)
+      payersByItem[p.budget_item_id].push({
+        user_id: p.user_id,
+        amount: p.amount,
+        username: prof?.username || '',
+        avatar_url: prof?.avatar_url || null
+      })
+    }
+
+    const mapped = items.map(item => ({
+      ...item,
+      members: membersByItem[item.id] || [],
+      payers: payersByItem[item.id] || []
+    }))
+
+    return { items: mapped }
   },
 
   create: async (tripId: number | string, data: BudgetCreateItemRequest) => {
@@ -879,7 +943,7 @@ export const budgetApi = {
       .select()
       .single()
     if (error) throw error
-    return { item }
+    return { item: { ...item, members: [], payers: [] } }
   },
 
   update: async (tripId: number | string, id: number, data: BudgetUpdateItemRequest) => {
@@ -899,14 +963,252 @@ export const budgetApi = {
     return { success: true }
   },
 
-  setMembers: async (...args: any[]): Promise<any> => ({ success: true, members: [], item: {} as any }),
-  togglePaid: async (...args: any[]): Promise<any> => ({ success: true }),
-  setPayers: async (tripId: number | string, id: number, payers: any[]) => ({ success: true }),
+  setMembers: async (tripId: number | string, itemId: number, userIds: (string | number)[]) => {
+    const { error: deleteError } = await supabase
+      .from('budget_item_members')
+      .delete()
+      .eq('budget_item_id', itemId)
+    if (deleteError) throw deleteError
+
+    if (userIds.length > 0) {
+      const inserts = userIds.map(uid => ({
+        budget_item_id: itemId,
+        user_id: String(uid),
+        paid: 0
+      }))
+      const { error: insertError } = await supabase
+        .from('budget_item_members')
+        .insert(inserts)
+      if (insertError) throw insertError
+    }
+
+    const { error: updateError } = await supabase
+      .from('budget_items')
+      .update({ persons: userIds.length || null })
+      .eq('id', itemId)
+    if (updateError) throw updateError
+
+    const { items } = await budgetApi.list(tripId)
+    const updatedItem = items.find(i => i.id === itemId)
+
+    return { success: true, members: updatedItem?.members || [], item: updatedItem || {} as any }
+  },
+
+  togglePaid: async (tripId: number | string, itemId: number, userId: string | number, paid: boolean | number) => {
+    const paidVal = paid ? 1 : 0
+    const { error } = await supabase
+      .from('budget_item_members')
+      .update({ paid: paidVal })
+      .eq('budget_item_id', itemId)
+      .eq('user_id', String(userId))
+    if (error) throw error
+    return { success: true }
+  },
+
+  setPayers: async (tripId: number | string, itemId: number, payers: any[]) => {
+    const { error: deleteError } = await supabase
+      .from('budget_item_payers')
+      .delete()
+      .eq('budget_item_id', itemId)
+    if (deleteError) throw deleteError
+
+    if (payers.length > 0) {
+      const inserts = payers.map(p => ({
+        budget_item_id: itemId,
+        user_id: String(p.user_id),
+        amount: Number(p.amount)
+      }))
+      const { error: insertError } = await supabase
+        .from('budget_item_payers')
+        .insert(inserts)
+      if (insertError) throw insertError
+    }
+
+    const totalAmount = payers.reduce((sum, p) => sum + Number(p.amount), 0)
+    const { error: updateError } = await supabase
+      .from('budget_items')
+      .update({ total_price: totalAmount })
+      .eq('id', itemId)
+    if (updateError) throw updateError
+
+    return { success: true }
+  },
+
   perPersonSummary: async (tripId: number | string): Promise<any> => ({ summary: [] }),
-  settlement: async (tripId: number | string, base?: string): Promise<any> => ({ settlements: [], balances: [], flows: [] }),
-  createSettlement: async (tripId: number | string, data: any): Promise<any> => ({ settlement: {} }),
-  updateSettlement: async (tripId: number | string, settlementId: number, data: any): Promise<any> => ({ settlement: {} }),
-  deleteSettlement: async (tripId: number | string, settlementId: number): Promise<any> => ({ success: true }),
+
+  settlement: async (tripId: number | string, base?: string): Promise<any> => {
+    const { items } = await budgetApi.list(tripId)
+
+    const { data: settlementsData, error: settlementsError } = await supabase
+      .from('budget_settlements')
+      .select('*')
+      .eq('trip_id', tripId)
+    if (settlementsError) throw settlementsError
+
+    const settlementUserIds = Array.from(new Set([
+      ...(settlementsData || []).map(s => s.from_user_id),
+      ...(settlementsData || []).map(s => s.to_user_id)
+    ]))
+
+    let profiles: any[] = []
+    if (settlementUserIds.length > 0) {
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .in('id', settlementUserIds)
+      if (profilesError) throw profilesError
+      profiles = profilesData || []
+    }
+
+    const profilesMap = new Map(profiles.map(p => [p.id, p]))
+
+    const settlements = (settlementsData || []).map((s: any) => {
+      const fromProf = profilesMap.get(s.from_user_id)
+      const toProf = profilesMap.get(s.to_user_id)
+      return {
+        id: s.id,
+        trip_id: s.trip_id,
+        from_user_id: s.from_user_id,
+        from_username: fromProf?.username || '',
+        from_avatar_url: fromProf?.avatar_url || null,
+        to_user_id: s.to_user_id,
+        to_username: toProf?.username || '',
+        to_avatar_url: toProf?.avatar_url || null,
+        amount: s.amount,
+        created_at: s.created_at
+      }
+    })
+
+    const balances: Record<string, { user_id: string; username: string; avatar_url: string | null; balance: number }> = {}
+    const ensure = (id: string, username: string, avatar: string | null) => {
+      if (!balances[id]) {
+        balances[id] = { user_id: id, username, avatar_url: avatar, balance: 0 }
+      }
+      return balances[id]
+    }
+
+    for (const item of items) {
+      const members = item.members || []
+      const payers = item.payers || []
+      if (members.length === 0) continue
+
+      const paidTotal = payers.reduce((sum: number, p: any) => sum + (p.amount > 0 ? p.amount : 0), 0)
+      const sharePerMember = paidTotal / members.length
+
+      for (const p of payers) {
+        ensure(p.user_id, p.username, p.avatar_url).balance += p.amount
+      }
+      for (const m of members) {
+        ensure(m.user_id, m.username, m.avatar_url).balance -= sharePerMember
+      }
+    }
+
+    for (const s of settlements) {
+      ensure(s.from_user_id, s.from_username, s.from_avatar_url).balance += s.amount
+      ensure(s.to_user_id, s.to_username, s.to_avatar_url).balance -= s.amount
+    }
+
+    const people = Object.values(balances).filter(b => Math.abs(b.balance) > 0.01)
+    const debtors = people.filter(p => p.balance < -0.01).map(p => ({ ...p, amount: -p.balance }))
+    const creditors = people.filter(p => p.balance > 0.01).map(p => ({ ...p, amount: p.balance }))
+
+    debtors.sort((a, b) => b.amount - a.amount)
+    creditors.sort((a, b) => b.amount - a.amount)
+
+    const creditorIds = creditors.map(c => c.user_id)
+    let paymentDetails: Record<string, any> = {}
+    if (creditorIds.length > 0) {
+      const { data: settingsData } = await supabase
+        .from('settings')
+        .select('user_id, key, value')
+        .in('user_id', creditorIds)
+        .in('key', ['payment_bank_id', 'payment_account_no', 'payment_account_name'])
+      
+      if (settingsData) {
+        for (const row of settingsData) {
+          if (!paymentDetails[row.user_id]) paymentDetails[row.user_id] = {}
+          let val = row.value
+          try {
+            val = JSON.parse(row.value)
+          } catch {
+            // Keep raw string
+          }
+          paymentDetails[row.user_id][row.key] = val
+        }
+      }
+    }
+
+    const flows: any[] = []
+    let di = 0, ci = 0
+    while (di < debtors.length && ci < creditors.length) {
+      const transfer = Math.min(debtors[di].amount, creditors[ci].amount)
+      if (transfer > 0.01) {
+        const toDetails = paymentDetails[creditors[ci].user_id] || {}
+        flows.push({
+          from: { user_id: debtors[di].user_id, username: debtors[di].username, avatar_url: debtors[di].avatar_url },
+          to: {
+            user_id: creditors[ci].user_id,
+            username: creditors[ci].username,
+            avatar_url: creditors[ci].avatar_url,
+            payment_bank_id: toDetails.payment_bank_id || null,
+            payment_account_no: toDetails.payment_account_no || null,
+            payment_account_name: toDetails.payment_account_name || null,
+          },
+          amount: Math.round(transfer * 100) / 100
+        })
+      }
+      debtors[di].amount -= transfer
+      creditors[ci].amount -= transfer
+      if (debtors[di].amount < 0.01) di++
+      if (creditors[ci].amount < 0.01) ci++
+    }
+
+    return {
+      balances: Object.values(balances).map(b => ({ ...b, balance: Math.round(b.balance * 100) / 100 })),
+      flows,
+      settlements
+    }
+  },
+
+  createSettlement: async (tripId: number | string, data: any) => {
+    const { data: item, error } = await supabase
+      .from('budget_settlements')
+      .insert([{
+        trip_id: Number(tripId),
+        from_user_id: String(data.from_user_id),
+        to_user_id: String(data.to_user_id),
+        amount: Number(data.amount)
+      }])
+      .select()
+      .single()
+    if (error) throw error
+    return { settlement: item }
+  },
+
+  updateSettlement: async (tripId: number | string, settlementId: number, data: any) => {
+    const { data: item, error } = await supabase
+      .from('budget_settlements')
+      .update({
+        from_user_id: String(data.from_user_id),
+        to_user_id: String(data.to_user_id),
+        amount: Number(data.amount)
+      })
+      .eq('id', settlementId)
+      .select()
+      .single()
+    if (error) throw error
+    return { settlement: item }
+  },
+
+  deleteSettlement: async (tripId: number | string, settlementId: number) => {
+    const { error } = await supabase
+      .from('budget_settlements')
+      .delete()
+      .eq('id', settlementId)
+    if (error) throw error
+    return { success: true }
+  },
+
   reorderItems: async (tripId: number | string, orderedIds: number[]) => ({ success: true }),
   reorderCategories: async (tripId: number | string, orderedCategories: string[]) => ({ success: true }),
 }
