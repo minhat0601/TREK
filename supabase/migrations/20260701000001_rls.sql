@@ -59,7 +59,12 @@ create policy "Users can modify their own settings"
 -- Trips
 create policy "Users can select trips they have access to"
   on public.trips for select
-  using (auth.role() = 'authenticated' and public.can_access_trip(id, auth.uid()));
+  using (
+    auth.role() = 'authenticated' and (
+      auth.uid() = user_id or 
+      public.can_access_trip(id, auth.uid())
+    )
+  );
 
 create policy "Users can insert trips with their owner ID"
   on public.trips for insert
@@ -67,7 +72,12 @@ create policy "Users can insert trips with their owner ID"
 
 create policy "Users can update trips they have access to"
   on public.trips for update
-  using (auth.role() = 'authenticated' and public.can_access_trip(id, auth.uid()));
+  using (
+    auth.role() = 'authenticated' and (
+      auth.uid() = user_id or 
+      public.can_access_trip(id, auth.uid())
+    )
+  );
 
 create policy "Users can delete trips they own"
   on public.trips for delete
