@@ -21,3 +21,45 @@ update public.profiles p
 set email = u.email
 from auth.users u
 where p.id = u.id and p.email is null;
+
+-- 4. Bổ sung các chính sách RLS cho tài khoản Admin
+
+-- Admin có quyền xem toàn bộ chuyến đi để thống kê số lượng
+create policy "Admins can select all trips"
+  on public.trips for select
+  using (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+-- Admin có quyền xem toàn bộ địa điểm
+create policy "Admins can select all places"
+  on public.places for select
+  using (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+-- Admin có quyền xem toàn bộ tệp tin tải lên
+create policy "Admins can select all trip files"
+  on public.trip_files for select
+  using (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+-- Admin có quyền quản lý toàn bộ profiles (chỉnh sửa, phân quyền, xóa người dùng)
+create policy "Admins can manage all profiles"
+  on public.profiles for all
+  using (
+    exists (
+      select 1 from public.profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
