@@ -15,18 +15,15 @@ async function probe(): Promise<void> {
   try {
     const ctrl = new AbortController()
     const t = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS)
-    const res = await fetch('/api/health', {
+    const url = import.meta.env.VITE_SUPABASE_URL || window.location.origin
+    const res = await fetch(url, {
       method: 'GET',
-      credentials: 'include',
       cache: 'no-store',
       signal: ctrl.signal,
     })
     clearTimeout(t)
-    // /api/health returns JSON. CF Access / Pangolin will either return HTML
-    // (Pangolin 200 auth wall) or trigger a cross-origin redirect that throws
-    // below. Both proxy-auth scenarios resolve to reachable = false.
     const ct = res.headers.get('content-type') || ''
-    setReachable(res.ok && ct.includes('application/json'))
+    setReachable(res.ok && (ct.includes('application/json') || ct.includes('text/html')))
   } catch {
     setReachable(false)
   }
