@@ -383,6 +383,9 @@ function usePlaceFormModal(props: PlaceFormModalProps) {
         lat: form.lat ? parseFloat(form.lat) : null,
         lng: form.lng ? parseFloat(form.lng) : null,
         category_id: form.category_id || null,
+        // PostgreSQL time columns reject '' — must be null when not set
+        place_time: form.place_time || null,
+        end_time: form.end_time || null,
         _pendingFiles: pendingFiles.length > 0 ? pendingFiles : undefined,
       })
       onClose()

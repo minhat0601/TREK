@@ -682,9 +682,21 @@ export const daysApi = {
   },
 }
 
+
 // -----------------------------------------------------------------------------
 // Places API
 // -----------------------------------------------------------------------------
+
+/** Convert empty strings → null for Postgres time/timestamp columns (code 22007) */
+function sanitizePlaceData(data: Record<string, any>) {
+  const TIME_COLS = ['place_time', 'end_time', 'reservation_datetime']
+  const out: Record<string, any> = { ...data }
+  for (const col of TIME_COLS) {
+    if (col in out && out[col] === '') out[col] = null
+  }
+  return out
+}
+
 export const placesApi = {
   list: async (...args: any[]): Promise<any> => {
     const tripId = args[0]
@@ -697,9 +709,11 @@ export const placesApi = {
   },
 
   create: async (tripId: number | string, data: PlaceCreateRequest) => {
+    // Sanitize: PostgreSQL time/timestamp cols reject '' → must be null
+    const safe = sanitizePlaceData(data)
     const { data: place, error } = await supabase
       .from('places')
-      .insert([{ ...data, trip_id: tripId }])
+      .insert([{ ...safe, trip_id: tripId }])
       .select()
       .single()
     if (error) throw error
@@ -717,9 +731,10 @@ export const placesApi = {
   },
 
   update: async (tripId: number | string, id: number | string, data: PlaceUpdateRequest) => {
+    const safe = sanitizePlaceData(data)
     const { data: place, error } = await supabase
       .from('places')
-      .update(data)
+      .update(safe)
       .eq('id', id)
       .select()
       .single()
