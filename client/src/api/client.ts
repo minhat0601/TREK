@@ -384,7 +384,7 @@ export const tripsApi = {
       .from('trips')
       .select('user_id')
       .eq('id', id)
-      .single()
+      .maybeSingle()
     const ownerId = trip?.user_id
 
     // 2. Get the members
