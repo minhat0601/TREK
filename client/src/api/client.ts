@@ -640,7 +640,8 @@ export const daysApi = {
   list: async (tripId: number | string) => {
     const { data: days, error } = await supabase
       .from('days')
-      .select('*, day_assignments(*), day_notes(*)')
+      // Alias to match the Day TypeScript type: assignments / notes_items
+      .select('*, assignments:day_assignments(*, place:places(*)), notes_items:day_notes(*)')
       .eq('trip_id', tripId)
     if (error) throw error
     return { days: days || [] }
