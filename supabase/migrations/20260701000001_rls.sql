@@ -16,6 +16,7 @@ alter table public.day_notes enable row level security;
 alter table public.day_accommodations enable row level security;
 alter table public.budget_items enable row level security;
 alter table public.packing_items enable row level security;
+alter table public.todo_items enable row level security;
 alter table public.reservations enable row level security;
 alter table public.photos enable row level security;
 alter table public.trip_files enable row level security;
@@ -151,6 +152,11 @@ create policy "Users can access budget items of accessible trips"
 -- Packing Items
 create policy "Users can access packing items of accessible trips"
   on public.packing_items for all
+  using (auth.role() = 'authenticated' and public.can_access_trip(trip_id, auth.uid()));
+
+-- Todo Items
+create policy "Users can access todo_items of accessible trips"
+  on public.todo_items for all
   using (auth.role() = 'authenticated' and public.can_access_trip(trip_id, auth.uid()));
 
 -- Reservations
